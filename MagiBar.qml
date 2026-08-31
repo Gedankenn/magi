@@ -517,23 +517,13 @@ Item {
       radius: root.islandRadius
       color: root.background
       borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, 1)
+      clip: true
 
-      Rectangle {
-        width: parent.width
-        height: 2
-        radius: 1
+      HazardStripe {
         anchors.top: parent.top
-        anchors.topMargin: 1
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: plate.radius
-        anchors.rightMargin: plate.radius
-        gradient: Gradient {
-          orientation: Gradient.Horizontal
-          GradientStop { position: 0; color: "#FF6A00" }
-          GradientStop { position: 0.55; color: "#7B2FBE" }
-          GradientStop { position: 1; color: "#00E5FF" }
-        }
+        height: 6
       }
 
       Row {

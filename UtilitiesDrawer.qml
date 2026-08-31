@@ -128,16 +128,9 @@ Item {
         anchors.margins: Style.spacing.panelPadding
         spacing: Style.space(8)
 
-        Rectangle {
+        HazardStripe {
           width: parent.width
-          height: 2
-          radius: 1
-          gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0; color: "#FF6A00" }
-            GradientStop { position: 0.55; color: "#7B2FBE" }
-            GradientStop { position: 1; color: "#00E5FF" }
-          }
+          height: 7
         }
 
         Text {
