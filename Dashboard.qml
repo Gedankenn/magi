@@ -12,7 +12,7 @@ Item {
   property bool opened: false
 
   readonly property color paper: "#F4F0E6"
-  readonly property color muted: "#8a7a6e"
+  readonly property color muted: "#9A8B7C"
   readonly property color accent: "#FF6A00"
   readonly property color blood: "#C41E3A"
   readonly property color acid: "#A8FF3E"
@@ -36,11 +36,11 @@ Item {
   readonly property string trackArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
   readonly property bool playing: !!(activePlayer && activePlayer.isPlaying)
 
-  width: parent ? parent.width : 1280
-  height: parent ? parent.height : 400
+  width: parent ? parent.width : 1600
+  height: parent ? parent.height : 500
   opacity: opened ? 1 : 0
   visible: opacity > 0.02
-  Behavior on opacity { NumberAnimation { duration: 160 } }
+  Behavior on opacity { NumberAnimation { duration: 140 } }
 
   function pickPlayer() {
     var list = players || []
@@ -174,286 +174,249 @@ Item {
     precision: SystemClock.Seconds
   }
 
-  component MagiPane: Rectangle {
+  component CorePane: Rectangle {
     id: pane
-    property string core: ""
+    property string coreId: "00"
     property string title: ""
-    property string subtitle: ""
-    default property alias extra: body.data
-    color: "#141014"
-    border.color: Qt.rgba(1, 0.42, 0, 0.28)
+    property alias body: paneBody
+    color: "#120e10"
     border.width: 1
+    border.color: "#5A2A10"
 
     Rectangle {
-      width: 4
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
+      width: 5
+      anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
       color: root.accent
     }
 
-    Column {
-      anchors.fill: parent
-      anchors.leftMargin: 18
-      anchors.rightMargin: 16
-      anchors.topMargin: 14
-      anchors.bottomMargin: 14
-      spacing: 10
+    Text {
+      id: paneHead
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.leftMargin: 22
+      anchors.topMargin: 18
+      text: pane.coreId + "   " + pane.title
+      color: root.accent
+      font.family: root.fontFamily
+      font.pixelSize: 18
+      font.bold: true
+      font.letterSpacing: 1.5
+    }
 
-      Row {
-        spacing: 10
-        width: parent.width
-        Text {
-          text: pane.core
-          color: root.accent
-          font.family: root.fontFamily
-          font.pixelSize: 12
-          font.letterSpacing: 2
-          font.bold: true
-          anchors.verticalCenter: parent.verticalCenter
-        }
-        Text {
-          text: pane.title
-          color: root.paper
-          font.family: root.fontFamily
-          font.pixelSize: 18
-          font.letterSpacing: 2.2
-          font.bold: true
-          font.capitalization: Font.AllUppercase
-          anchors.verticalCenter: parent.verticalCenter
-        }
-        Text {
-          text: pane.subtitle
-          color: root.muted
-          font.family: root.fontFamily
-          font.pixelSize: 13
-          font.letterSpacing: 1.6
-          anchors.verticalCenter: parent.verticalCenter
-        }
-      }
+    Rectangle {
+      id: paneRule
+      anchors.top: paneHead.bottom
+      anchors.topMargin: 12
+      anchors.left: parent.left
+      anchors.leftMargin: 22
+      anchors.right: parent.right
+      anchors.rightMargin: 18
+      height: 1
+      color: "#5A2A10"
+    }
 
-      Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 0.42, 0, 0.22) }
-
-      Item {
-        id: body
-        width: parent.width
-        height: parent.height - 42
-      }
+    Item {
+      id: paneBody
+      anchors.top: paneRule.bottom
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.topMargin: 18
+      anchors.leftMargin: 22
+      anchors.rightMargin: 18
+      anchors.bottomMargin: 18
     }
   }
 
-  component MeterRow: Column {
+  component Meter: Item {
     property string label: ""
     property real value: 0
+    height: 58
     width: parent ? parent.width : 200
-    spacing: 6
 
-    Row {
-      width: parent.width
-      Text {
-        text: label
-        color: root.muted
-        font.family: root.fontFamily
-        font.pixelSize: 14
-        font.letterSpacing: 2
-        font.bold: true
-      }
-      Text {
-        width: parent.width - 60
-        text: root.pct(value)
-        color: root.paper
-        font.family: root.fontFamily
-        font.pixelSize: 16
-        font.bold: true
-        horizontalAlignment: Text.AlignRight
-      }
+    Text {
+      text: label
+      color: root.muted
+      font.family: root.fontFamily
+      font.pixelSize: 16
+      font.bold: true
+    }
+    Text {
+      anchors.right: parent.right
+      text: root.pct(value)
+      color: root.paper
+      font.family: root.fontFamily
+      font.pixelSize: 22
+      font.bold: true
     }
     Rectangle {
-      width: parent.width
-      height: 12
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: 14
       color: "#2a1510"
       Rectangle {
-        width: Math.max(4, parent.width * value)
+        width: Math.max(6, parent.width * value)
         height: parent.height
         color: root.meterColor(value)
       }
     }
   }
 
-  Column {
-    anchors.fill: parent
-    anchors.margins: 18
-    spacing: 14
+  Item {
+    id: topBar
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 72
 
-    Item {
-      width: parent.width
-      height: 52
+    Text {
+      anchors.left: parent.left
+      anchors.leftMargin: 24
+      anchors.verticalCenter: parent.verticalCenter
+      text: root.host && root.host.pinned ? "PINNED" : (root.weatherPlace || "GEOFRONT").toUpperCase()
+      color: root.paper
+      font.family: root.fontFamily
+      font.pixelSize: 20
+      font.bold: true
+    }
+
+    Text {
+      anchors.right: parent.right
+      anchors.rightMargin: 24
+      anchors.verticalCenter: parent.verticalCenter
+      text: Qt.formatTime(clock.date, "HH:mm:ss")
+      color: root.paper
+      font.family: root.fontFamily
+      font.pixelSize: 44
+      font.bold: true
+    }
+  }
+
+  Row {
+    id: cores
+    anchors.top: topBar.bottom
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.leftMargin: 20
+    anchors.rightMargin: 20
+    anchors.bottomMargin: 20
+    spacing: 16
+
+    CorePane {
+      id: balthasar
+      width: (parent.width - 32) / 3
+      height: parent.height
+      coreId: "01"
+      title: "BALTHASAR"
 
       Column {
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 2
-        Text {
-          text: root.host && root.host.pinned ? "PINNED  ·  ESC RELEASES" : "SYNCHRONIZED  ·  THE FATE OF MANKIND"
-          color: root.muted
-          font.family: root.fontFamily
-          font.pixelSize: 13
-          font.letterSpacing: 1.8
-        }
-        Text {
-          text: (root.weatherPlace || "AWAITING MAGI FEED").toUpperCase()
-          color: root.paper
-          font.family: root.fontFamily
-          font.pixelSize: 15
-          font.letterSpacing: 1.4
-        }
-      }
+        parent: balthasar.body
+        width: parent.width
+        spacing: 14
 
-      Column {
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
         Text {
-          anchors.right: parent.right
-          text: Qt.formatTime(clock.date, "HH:mm:ss")
+          text: (root.weatherTemp || "—") + "   " + (root.weatherEmoji || "")
           color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: 36
+          font.pixelSize: 48
           font.bold: true
         }
         Text {
-          anchors.right: parent.right
-          text: Qt.formatDate(clock.date, "dddd d MMMM yyyy").toUpperCase()
+          width: parent.width
+          text: root.weatherCond || "No weather signal"
+          color: root.paper
+          font.family: root.fontFamily
+          font.pixelSize: 22
+          wrapMode: Text.WordWrap
+        }
+        Text {
+          width: parent.width
+          text: (root.weatherHum ? "Humidity  " + root.weatherHum : "") + (root.weatherWind ? "\nWind  " + root.weatherWind : "")
           color: root.muted
           font.family: root.fontFamily
-          font.pixelSize: 13
-          font.letterSpacing: 1.6
+          font.pixelSize: 18
         }
       }
     }
 
-    Row {
-      width: parent.width
-      spacing: 14
-      height: parent.height - 80
+    CorePane {
+      id: melchior
+      width: (parent.width - 32) / 3
+      height: parent.height
+      coreId: "02"
+      title: "MELCHIOR"
 
-      MagiPane {
-        width: (parent.width - 28) / 3
-        height: parent.height
-        core: "01"
-        title: "BALTHASAR"
-        subtitle: "WEATHER"
-        Column {
-          width: parent.width
-          spacing: 10
-          Row {
-            spacing: 12
-            Text {
-              text: root.weatherEmoji || "·"
-              font.pixelSize: 42
-              color: root.paper
-              anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-              text: root.weatherTemp || "—"
-              color: root.paper
-              font.family: root.fontFamily
-              font.pixelSize: 42
-              font.bold: true
-              anchors.verticalCenter: parent.verticalCenter
-            }
-          }
-          Text {
-            width: parent.width
-            text: (root.weatherCond || "NO SIGNAL").toUpperCase()
-            color: root.paper
-            font.family: root.fontFamily
-            font.pixelSize: 18
-            wrapMode: Text.Wrap
-          }
-          Text {
-            width: parent.width
-            text: [root.weatherHum ? ("HUM " + root.weatherHum) : "", root.weatherWind ? ("WIND " + root.weatherWind) : ""].filter(function(s) { return !!s }).join("    ")
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: 15
-            wrapMode: Text.Wrap
-          }
-        }
+      Column {
+        parent: melchior.body
+        width: parent.width
+        spacing: 20
+        Meter { label: "CPU"; value: root.cpuUsage; width: parent.width }
+        Meter { label: "Memory"; value: root.memUsage; width: parent.width }
+        Meter { label: "Disk"; value: root.diskUsage; width: parent.width }
       }
+    }
 
-      MagiPane {
-        width: (parent.width - 28) / 3
-        height: parent.height
-        core: "02"
-        title: "MELCHIOR"
-        subtitle: "SYSTEM"
-        Column {
+    CorePane {
+      id: casper
+      width: (parent.width - 32) / 3
+      height: parent.height
+      coreId: "03"
+      title: "CASPER"
+
+      Column {
+        parent: casper.body
+        width: parent.width
+        spacing: 16
+
+        Text {
           width: parent.width
-          spacing: 18
-          MeterRow { label: "CPU"; value: root.cpuUsage }
-          MeterRow { label: "MEM"; value: root.memUsage }
-          MeterRow { label: "DSK"; value: root.diskUsage }
+          text: root.trackTitle || "No signal"
+          color: root.paper
+          font.family: root.fontFamily
+          font.pixelSize: 24
+          font.bold: true
+          wrapMode: Text.WordWrap
+          maximumLineCount: 2
         }
-      }
-
-      MagiPane {
-        width: (parent.width - 28) / 3
-        height: parent.height
-        core: "03"
-        title: "CASPER"
-        subtitle: "MEDIA"
-        Column {
+        Text {
           width: parent.width
+          text: root.trackArtist || "Casper is idle"
+          color: root.muted
+          font.family: root.fontFamily
+          font.pixelSize: 18
+          wrapMode: Text.WordWrap
+        }
+        Row {
           spacing: 12
-          Text {
-            width: parent.width
-            text: root.trackTitle || "NO SIGNAL"
-            color: root.paper
-            font.family: root.fontFamily
-            font.pixelSize: 22
-            font.bold: true
-            elide: Text.ElideRight
-            wrapMode: Text.NoWrap
-          }
-          Text {
-            width: parent.width
-            text: root.trackArtist || "Casper is idle"
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: 16
-            elide: Text.ElideRight
-          }
-          Row {
-            spacing: 10
-            Repeater {
-              model: [
-                { label: "PREV", action: "prev" },
-                { label: root.playing ? "PAUSE" : "PLAY", action: "play" },
-                { label: "NEXT", action: "next" }
-              ]
-              Rectangle {
-                required property var modelData
-                width: 86
-                height: 36
-                color: hit.containsMouse ? Qt.rgba(1, 0.42, 0, 0.28) : "#1a1210"
-                border.width: 1
-                border.color: hit.containsMouse ? root.accent : Qt.rgba(1, 0.42, 0, 0.35)
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData.label
-                  color: root.paper
-                  font.family: root.fontFamily
-                  font.pixelSize: 13
-                  font.letterSpacing: 1.6
-                  font.bold: true
-                }
-                MouseArea {
-                  id: hit
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.mediaAction(modelData.action)
-                }
+          Repeater {
+            model: [
+              { label: "PREV", action: "prev" },
+              { label: root.playing ? "PAUSE" : "PLAY", action: "play" },
+              { label: "NEXT", action: "next" }
+            ]
+            Rectangle {
+              required property var modelData
+              width: 100
+              height: 44
+              color: hit.containsMouse ? "#402010" : "#1a1210"
+              border.width: 1
+              border.color: root.accent
+              Text {
+                anchors.centerIn: parent
+                text: modelData.label
+                color: root.paper
+                font.family: root.fontFamily
+                font.pixelSize: 15
+                font.bold: true
+              }
+              MouseArea {
+                id: hit
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.mediaAction(modelData.action)
               }
             }
           }

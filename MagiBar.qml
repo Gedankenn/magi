@@ -347,12 +347,12 @@ Item {
 
     readonly property int dropTop: root.sideGap + root.barSize - 2
     readonly property int screenW: screen ? Math.round(screen.width) : 1920
-    readonly property int sessionW: Style.space(300)
-    readonly property int sessionH: Style.space(268)
-    readonly property int dashW: Math.min(screenW - Style.space(32), Style.space(1280))
-    readonly property int dashH: Style.space(468)
-    readonly property int utilW: Style.space(320)
-    readonly property int utilH: Style.space(312)
+    readonly property int sessionW: 320
+    readonly property int sessionH: 280
+    readonly property int dashW: Math.max(960, screenW - 48)
+    readonly property int dashH: 560
+    readonly property int utilW: 340
+    readonly property int utilH: 330
 
     function clampX(x, w) {
       return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
@@ -552,67 +552,75 @@ Item {
         Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.right: parent.right; anchors.bottom: parent.bottom }
         Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.right: parent.right; anchors.bottom: parent.bottom }
 
-        Column {
-          anchors.fill: parent
-          spacing: 0
+        HazardStripe {
+          id: tape
+          anchors.top: parent.top
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: 14
+        }
 
-          HazardStripe {
-            width: parent.width
-            height: 14
-          }
+        Rectangle {
+          id: tapeLine
+          anchors.top: tape.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: 2
+          color: "#FF6A00"
+        }
 
-          Rectangle {
-            width: parent.width
-            height: 2
+        Item {
+          id: dropHead
+          anchors.top: tapeLine.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: 44
+
+          Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            text: dropWin.heading
             color: "#FF6A00"
+            font.family: root.fontFamily
+            font.pixelSize: 16
+            font.letterSpacing: 2
+            font.bold: true
           }
 
-          Item {
-            width: parent.width
-            height: 38
-
-            Text {
-              anchors.left: parent.left
-              anchors.leftMargin: 16
-              anchors.verticalCenter: parent.verticalCenter
-              text: dropWin.heading
-              color: "#FF6A00"
-              font.family: root.fontFamily
-              font.pixelSize: 15
-              font.letterSpacing: 3
-              font.bold: true
-              font.capitalization: Font.AllUppercase
-            }
-
-            Text {
-              anchors.right: parent.right
-              anchors.rightMargin: 16
-              anchors.verticalCenter: parent.verticalCenter
-              text: dropWin.kicker
-              color: "#F4F0E6"
-              font.family: root.fontFamily
-              font.pixelSize: 13
-              font.letterSpacing: 2.4
-              font.bold: true
-            }
+          Text {
+            anchors.right: parent.right
+            anchors.rightMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            text: dropWin.kicker
+            color: "#F4F0E6"
+            font.family: root.fontFamily
+            font.pixelSize: 14
+            font.letterSpacing: 2
+            font.bold: true
           }
+        }
 
-          Rectangle {
-            width: parent.width
-            height: 1
-            color: Qt.rgba(1, 0.42, 0, 0.35)
-          }
+        Rectangle {
+          id: dropRule
+          anchors.top: dropHead.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: 1
+          color: Qt.rgba(1, 0.42, 0, 0.4)
+        }
 
-          Loader {
-            width: parent.width
-            height: parent.height - 55
-            active: dropWin.menuSource !== ""
-            source: dropWin.menuSource
-            onLoaded: {
-              if (!item) return
-              item.host = root
-              item.opened = Qt.binding(function() { return dropWin.opened })
-            }
+        Loader {
+          anchors.top: dropRule.bottom
+          anchors.bottom: parent.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          active: dropWin.menuSource !== ""
+          source: dropWin.menuSource
+          onLoaded: {
+            if (!item) return
+            item.host = root
+            item.opened = Qt.binding(function() { return dropWin.opened })
           }
         }
       }
