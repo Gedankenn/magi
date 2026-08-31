@@ -17,6 +17,9 @@ Item {
   property var manifest: null
   property var pluginRegistry: null
 
+  readonly property string home: Quickshell.env("HOME")
+  readonly property string omarchyConfigDir: home + "/.config/omarchy"
+
   property string position: "top"
   readonly property bool vertical: false
   readonly property int barSize: Style.bar.sizeHorizontal + Style.space(14)
@@ -43,6 +46,7 @@ Item {
   property bool dashOpen: false
   property bool sessionOpen: false
   property bool utilOpen: false
+  property int dashSerial: 0
   property int topCount: 0
   property int leftCount: 0
   property int rightCount: 0
@@ -53,12 +57,12 @@ Item {
 
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
-  readonly property int sensorSize: 4
-  readonly property int dashDelay: 160
-  readonly property int hideDelay: 420
+  readonly property int dashDelay: 90
+  readonly property int hideDelay: 280
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(10)
   readonly property int islandRadius: 0
+  readonly property int overlayHeight: Style.space(420)
   property real leftIslandWidth: 0
   property real centerIslandWidth: 0
   property real rightIslandWidth: 0
@@ -82,6 +86,11 @@ Item {
   function entryId(entry) { return Model.entryId(entry) }
   function entrySettings(entry) { return Model.entrySettings(entry) }
   function canonicalWidgetId(name) { return Util.canonicalWidgetId(name) }
+  function customModuleType(entry) { return Model.customModuleType(entry) }
+  function customModuleSource(entry) {
+    var source = Model.customModulePath(entry, home, omarchyConfigDir)
+    return source ? Util.fileUrl(source) : ""
+  }
 
   function registerModuleSlot(slot) {
     if (!slot || moduleSlots.indexOf(slot) !== -1) return
@@ -220,6 +229,8 @@ Item {
   function unregisterClickTarget(target) {}
 
   function openDash() {
+    sessionOpen = false
+    utilOpen = false
     dashOpen = true
     dashDelayTimer.stop()
   }
@@ -238,6 +249,7 @@ Item {
   function closeSides() {
     sessionOpen = false
     utilOpen = false
+    if (!pinned) dashOpen = false
   }
 
   function bump(edge, entered) {
@@ -245,6 +257,8 @@ Item {
     if (edge === "top") {
       topCount = Math.max(0, topCount + delta)
       if (topHot) {
+        sessionOpen = false
+        utilOpen = false
         if (!dashOpen && !pinned) dashDelayTimer.restart()
       } else {
         dashDelayTimer.stop()
@@ -252,15 +266,21 @@ Item {
       }
     } else if (edge === "left") {
       leftCount = Math.max(0, leftCount + delta)
-      if (leftHot) leftDelayTimer.restart()
-      else {
+      if (leftHot) {
+        if (!pinned) dashOpen = false
+        utilOpen = false
+        leftDelayTimer.restart()
+      } else {
         leftDelayTimer.stop()
         sessionCloseTimer.restart()
       }
     } else if (edge === "right") {
       rightCount = Math.max(0, rightCount + delta)
-      if (rightHot) rightDelayTimer.restart()
-      else {
+      if (rightHot) {
+        if (!pinned) dashOpen = false
+        sessionOpen = false
+        rightDelayTimer.restart()
+      } else {
         rightDelayTimer.stop()
         utilCloseTimer.restart()
       }
@@ -272,11 +292,11 @@ Item {
   }
 
   Timer { id: dashDelayTimer; interval: root.dashDelay; onTriggered: if (root.topHot) root.openDash() }
-  Timer { id: dashCloseTimer; interval: 480; onTriggered: if (!root.topHot && !root.pinned) root.closeDash() }
-  Timer { id: leftDelayTimer; interval: 140; onTriggered: if (root.leftHot) root.sessionOpen = true }
-  Timer { id: sessionCloseTimer; interval: 180; onTriggered: if (!root.leftHot) root.sessionOpen = false }
-  Timer { id: rightDelayTimer; interval: 140; onTriggered: if (root.rightHot) root.utilOpen = true }
-  Timer { id: utilCloseTimer; interval: 180; onTriggered: if (!root.rightHot) root.utilOpen = false }
+  Timer { id: dashCloseTimer; interval: root.hideDelay; onTriggered: if (!root.topHot && !root.pinned) root.closeDash() }
+  Timer { id: leftDelayTimer; interval: root.dashDelay; onTriggered: if (root.leftHot) root.sessionOpen = true }
+  Timer { id: sessionCloseTimer; interval: root.hideDelay; onTriggered: if (!root.leftHot) root.sessionOpen = false }
+  Timer { id: rightDelayTimer; interval: root.dashDelay; onTriggered: if (root.rightHot) root.utilOpen = true }
+  Timer { id: utilCloseTimer; interval: root.hideDelay; onTriggered: if (!root.rightHot) root.utilOpen = false }
 
   IpcHandler {
     target: "io.github.gedankenn.magi"
@@ -301,83 +321,17 @@ Item {
     id: seat
     required property var screen
 
-    Dashboard {
-      screen: seat.screen
-      host: root
-      opened: root.dashOpen
-      onHoveredChanged: root.bump("top", hovered)
-    }
-    SessionDrawer {
-      screen: seat.screen
-      host: root
-      opened: root.sessionOpen
-      onHoveredChanged: root.bump("left", hovered)
-    }
-    UtilitiesDrawer {
-      screen: seat.screen
-      host: root
-      opened: root.utilOpen
-      onHoveredChanged: root.bump("right", hovered)
-    }
-
-    PanelWindow {
-      id: sensor
-      screen: seat.screen
-      anchors { left: true; right: true; top: root.position !== "bottom"; bottom: root.position === "bottom" }
-      implicitHeight: root.sensorSize
-      color: "transparent"
-      exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.namespace: "magi-edge-top"
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-      HoverHandler { onHoveredChanged: root.bump("top", hovered) }
-    }
-
-    PanelWindow {
-      screen: seat.screen
-      anchors { top: true; bottom: true; left: true }
-      implicitWidth: root.sensorSize
-      color: "transparent"
-      exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.namespace: "magi-edge-left"
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-      Rectangle {
-        anchors.fill: parent
-        color: Color.accent
-        opacity: root.sessionOpen ? 0 : 0.45
-      }
-      HoverHandler { onHoveredChanged: root.bump("left", hovered) }
-    }
-
-    PanelWindow {
-      screen: seat.screen
-      anchors { top: true; bottom: true; right: true }
-      implicitWidth: root.sensorSize
-      color: "transparent"
-      exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.namespace: "magi-edge-right"
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-      Rectangle {
-        anchors.fill: parent
-        color: Color.accent
-        opacity: root.utilOpen ? 0 : 0.45
-      }
-      HoverHandler { onHoveredChanged: root.bump("right", hovered) }
-    }
-
     PanelWindow {
       id: barWindow
       screen: seat.screen
       visible: true
-      exclusionMode: ExclusionMode.Auto
-      implicitHeight: root.barSize
+      exclusionMode: ExclusionMode.Normal
+      exclusiveZone: root.barSize
+      implicitHeight: root.overlayHeight
       color: "transparent"
       WlrLayershell.namespace: "magi-bar"
       WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+      WlrLayershell.keyboardFocus: root.pinned ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
       anchors {
         top: root.position !== "bottom"
@@ -403,12 +357,29 @@ Item {
         Region { item: rightIsland }
       }
 
+      Item {
+        anchors.fill: parent
+        focus: root.pinned
+        Keys.onPressed: function(event) {
+          if (event.key === Qt.Key_Escape) {
+            root.toggleDash()
+            event.accepted = true
+          } else if (event.text === "r" || event.text === "R") {
+            root.dashSerial++
+            event.accepted = true
+          }
+        }
+      }
+
       MagiIsland {
         id: leftIsland
         tag: "NERV"
         edge: "left"
+        menuSource: "SessionDrawer.qml"
+        expanded: root.sessionOpen
+        menuMinWidth: Style.space(228)
         anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: parent.top
         onWidthChanged: root.leftIslandWidth = width
         Repeater {
           model: root.layoutEntries("left")
@@ -424,8 +395,11 @@ Item {
         id: centerIsland
         tag: "MAGI"
         edge: "top"
+        menuSource: "Dashboard.qml"
+        expanded: root.dashOpen
+        menuMinWidth: Style.space(640)
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: parent.top
         onWidthChanged: root.centerIslandWidth = width
         Repeater {
           model: root.layoutEntries("center")
@@ -441,8 +415,11 @@ Item {
         id: rightIsland
         tag: "SYS"
         edge: "right"
+        menuSource: "UtilitiesDrawer.qml"
+        expanded: root.utilOpen
+        menuMinWidth: Style.space(248)
         anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: parent.top
         onWidthChanged: root.rightIslandWidth = width
         Repeater {
           model: root.layoutEntries("right")
@@ -486,13 +463,21 @@ Item {
     id: island
     property string tag: ""
     property string edge: ""
+    property string menuSource: ""
+    property bool expanded: false
+    property int menuMinWidth: Style.space(220)
     default property alias extra: chipRow.data
 
-    implicitWidth: plate.implicitWidth
-    implicitHeight: plate.implicitHeight
+    readonly property real headerWidth: tagLabel.implicitWidth + chipRow.implicitWidth + root.islandPadX * 2 + (tagLabel.visible ? Style.space(8) : 0)
+    readonly property real menuHeight: menuLoader.item ? menuLoader.item.implicitHeight + Style.space(12) : 0
+
+    implicitWidth: Math.max(root.barSize, headerWidth, expanded ? menuMinWidth : 0)
+    implicitHeight: root.barSize + (expanded ? menuHeight : 0)
     width: implicitWidth
     height: implicitHeight
-    visible: chipRow.children.length > 0
+
+    Behavior on implicitWidth { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+    Behavior on implicitHeight { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
 
     HoverHandler {
       onHoveredChanged: if (island.edge) root.bump(island.edge, hovered)
@@ -510,45 +495,77 @@ Item {
 
     BorderSurface {
       id: plate
-      implicitWidth: Math.max(root.barSize, tagLabel.implicitWidth + chipRow.implicitWidth + root.islandPadX * 2 + (tagLabel.visible ? Style.space(8) : 0))
-      implicitHeight: root.barSize
-      width: implicitWidth
-      height: implicitHeight
+      width: parent.width
+      height: parent.height
       radius: root.islandRadius
       color: root.background
       borderSpec: Border.flat("#FF6A00", 2)
       clip: true
 
       HazardStripe {
+        id: stripe
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: 11
       }
 
-      Row {
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: parent.horizontalCenter
+      Column {
+        anchors.top: stripe.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: root.islandPadX
+        anchors.rightMargin: root.islandPadX
+        anchors.bottomMargin: Style.space(8)
         spacing: Style.space(8)
-        height: Style.bar.sizeHorizontal
-
-        Text {
-          id: tagLabel
-          visible: island.tag !== ""
-          text: island.tag
-          color: Color.accent
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 2.4
-          font.bold: true
-          font.capitalization: Font.AllUppercase
-          anchors.verticalCenter: parent.verticalCenter
-        }
 
         Row {
-          id: chipRow
-          spacing: Style.space(4)
-          height: parent.height
+          id: headerRow
+          width: parent.width
+          height: Math.max(Style.bar.sizeHorizontal, chipRow.implicitHeight)
+          spacing: Style.space(8)
+
+          Text {
+            id: tagLabel
+            visible: island.tag !== ""
+            text: island.tag
+            color: Color.accent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            font.letterSpacing: 2.4
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Row {
+            id: chipRow
+            spacing: Style.space(4)
+            height: parent.height
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        Item {
+          width: parent.width
+          height: island.expanded ? (menuLoader.item ? menuLoader.item.implicitHeight : 0) : 0
+          clip: true
+          Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+
+          Loader {
+            id: menuLoader
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            active: island.menuSource !== ""
+            source: island.menuSource
+            onLoaded: {
+              if (!item) return
+              item.host = root
+              item.opened = Qt.binding(function() { return island.expanded })
+            }
+          }
         }
       }
     }
@@ -560,12 +577,20 @@ Item {
     property string region: ""
     readonly property string moduleName: root.entryId(entry)
     readonly property var moduleSettings: root.entrySettings(entry)
+    readonly property string customType: root.customModuleType(entry)
     readonly property var registryComponent: {
       var w = root.barWidgetRegistry ? root.barWidgetRegistry.widgets : null
+      if (customType) return null
       var name = root.canonicalWidgetId(slot.moduleName)
       return w && w[name] ? w[name].component : null
     }
-    readonly property var activeItem: loader.item
+    readonly property bool qmlCustom: customType === "qml"
+    readonly property bool registered: registryComponent !== null
+    readonly property var activeItem: {
+      if (registered) return registryLoader.item
+      if (qmlCustom) return qmlLoader.item
+      return null
+    }
 
     implicitWidth: activeItem && activeItem.visible ? activeItem.implicitWidth : 0
     implicitHeight: activeItem && activeItem.visible ? activeItem.implicitHeight : 0
@@ -576,9 +601,17 @@ Item {
     Component.onDestruction: root.unregisterModuleSlot(slot)
 
     Loader {
-      id: loader
-      active: slot.registryComponent !== null
-      sourceComponent: slot.registryComponent
+      id: registryLoader
+      active: slot.registered
+      sourceComponent: slot.registered ? slot.registryComponent : null
+      anchors.fill: parent
+      onLoaded: slot.injectProps()
+    }
+
+    Loader {
+      id: qmlLoader
+      active: slot.qmlCustom
+      source: slot.qmlCustom ? root.customModuleSource(slot.entry) : ""
       anchors.fill: parent
       onLoaded: slot.injectProps()
     }

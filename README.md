@@ -2,14 +2,14 @@
 
 <p align="center">
   <strong>A floating MAGI bar for Omarchy.</strong><br>
-  Three cyberpunk HUD islands. Always on. Drawers from the edges.
+  Three cyberpunk HUD islands. Hover to expand them into menus.
 </p>
 
 <p align="center">
-  <img src="preview.png" width="640" alt="MAGI dashboard sliding from the top edge: Balthasar weather, Melchior meters, Casper media">
+  <img src="preview.png" width="640" alt="MAGI islands: NERV, MAGI, SYS">
 </p>
 
-MAGI **is** the bar. It replaces `omarchy.bar` with three floating HUD islands — left, center, right — instead of one slab. Your existing layout (menu, workspaces, clock, network, tray, …) is grouped into those chips. Hover the top gap for the MAGI dashboard; the side edges open the NERV session and Casper utility drawers.
+MAGI **is** the bar. It replaces `omarchy.bar` with three floating HUD islands — left, center, right — instead of one slab. Your existing layout (menu, workspaces, clock, network, tray, …) is grouped into those chips. Hover an island and it grows into a clickable menu. `Super + D` pins the center MAGI panel.
 
 No sudo. No extra daemon.
 
@@ -24,23 +24,22 @@ That last command makes MAGI the active bar (`bar.id` in `shell.json`). `omarchy
 
 ## What you get
 
-| Edge | What appears |
+| Island | Hover expands into |
 | --- | --- |
-| Center island **MAGI** (or the gap above it) | The island extends into the MAGI dashboard |
-| Left island **NERV** | Extends into session: lock, logout, reboot, shutdown |
-| Right island **SYS** | Extends into status: CPU/RAM, night light, stay-awake, DND |
+| Center **MAGI** | Dashboard: Balthasar weather, Melchior meters, Casper media |
+| Left **NERV** | Session: lock, logout, reboot, shutdown |
+| Right **SYS** | Status: CPU/RAM, night light, stay-awake, DND, next wallpaper |
 
-Move the pointer off a drawer and it slides away. The bar stays put.
+The island chrome stays put; the plate grows down and wider so the extra buttons live inside it. Move the pointer off and it collapses.
 
 ## Shortcuts
 
 | Input | Action |
 | :---: | --- |
-| Pointer on a screen edge | Reveal that drawer |
+| Pointer on an island | Expand that island into its menu |
 | `Super + D` | Pin / unpin the MAGI dashboard |
 | Escape (while pinned) | Release the dashboard |
 | `r` | Refresh weather and meters |
-| Space | Play / pause |
 
 Bind it yourself if you skipped the default:
 
@@ -51,7 +50,7 @@ o.bind("SUPER + D", "MAGI dashboard", "omarchy-shell io.github.gedankenn.magi to
 
 ## Configure
 
-MAGI reads the same `bar.layout` as the stock bar. Move widgets with the usual commands:
+MAGI reads the same `bar.layout` as the stock bar, including custom QML modules (`type: qml` in `~/.config/omarchy/bar/modules/<id>.qml`). Move widgets with the usual commands:
 
 ```sh
 omarchy bar move omarchy.clock --section center

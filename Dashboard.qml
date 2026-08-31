@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import qs.Commons
 import qs.Ui
@@ -9,27 +8,13 @@ import qs.Ui
 Item {
   id: root
 
-  required property var screen
-  required property var host
+  property var host: null
   property bool opened: false
-  property bool hovered: false
 
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
-  readonly property var borderSpec: Border.flat("#FF6A00", 2)
   readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-  readonly property int cardWidth: {
-    var island = host && host.centerIslandWidth ? host.centerIslandWidth : 0
-    return Math.max(Math.round(island), Style.space(560))
-  }
-  readonly property int cardHeight: Style.space(248)
-  readonly property real shownY: {
-    var gap = host && host.sideGap ? host.sideGap : Style.gapsOut
-    var size = host && host.barSize ? host.barSize : Style.bar.sizeHorizontal
-    return gap + size + 2
-  }
-  readonly property real parkedY: shownY - 18
 
   property string weatherEmoji: ""
   property string weatherTemp: ""
@@ -48,6 +33,14 @@ Item {
   readonly property string trackTitle: activePlayer ? (activePlayer.trackTitle || "") : ""
   readonly property string trackArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
   readonly property bool playing: !!(activePlayer && activePlayer.isPlaying)
+
+  implicitWidth: col.implicitWidth
+  implicitHeight: col.implicitHeight
+  width: parent ? parent.width : implicitWidth
+  height: implicitHeight
+  opacity: opened ? 1 : 0
+  visible: opacity > 0.02
+  Behavior on opacity { NumberAnimation { duration: 180 } }
 
   function pickPlayer() {
     var list = players || []
@@ -129,6 +122,11 @@ Item {
 
   onOpenedChanged: if (opened) refreshAll()
 
+  Connections {
+    target: host
+    function onDashSerialChanged() { root.refreshAll() }
+  }
+
   FileView {
     path: Quickshell.env("HOME") + "/.local/state/omarchy/settings/weather.json"
     watchChanges: true
@@ -184,7 +182,7 @@ Item {
     color: Qt.rgba(1, 1, 1, 0.03)
     border.color: Qt.rgba(1, 1, 1, 0.08)
     border.width: 1
-    radius: Math.max(4, Style.cornerRadius)
+    radius: 0
 
     Column {
       anchors.fill: parent
@@ -237,13 +235,12 @@ Item {
     Rectangle {
       width: Math.max(40, parent.width - Style.space(78))
       height: 7
-      radius: 3
+      radius: 0
       color: Qt.rgba(1, 1, 1, 0.08)
       anchors.verticalCenter: parent.verticalCenter
       Rectangle {
         width: Math.max(2, parent.width * value)
         height: parent.height
-        radius: parent.radius
         color: root.meterColor(value)
       }
     }
@@ -258,239 +255,170 @@ Item {
     }
   }
 
-  PanelWindow {
-    id: panel
-    screen: root.screen
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "magi-dashboard"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: (root.opened && root.host && root.host.pinned) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    mask: Region { item: card }
+  Column {
+    id: col
+    width: root.width
+    spacing: Style.space(10)
 
-    MouseArea {
-      anchors.fill: parent
-      enabled: root.opened && root.host && root.host.pinned
-      onClicked: root.host.toggleDash()
-    }
-
-    Rectangle {
-      anchors.fill: card
-      anchors.margins: -2
-      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
-      color: "transparent"
-      border.width: 2
-      border.color: "#FF6A00"
-      opacity: 0.45
-    }
-
-    BorderSurface {
-      id: card
-      width: root.cardWidth
-      height: root.cardHeight
-      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
-      anchors.horizontalCenter: parent.horizontalCenter
-      y: root.opened ? root.shownY : root.parkedY
-      color: root.background
-      borderSpec: root.borderSpec
-      Behavior on y { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-
-      HoverHandler {
-        onHoveredChanged: root.hovered = hovered
-      }
-
-      MouseArea { anchors.fill: parent; onClicked: {} }
+    Item {
+      width: parent.width
+      height: headerCol.height
 
       Column {
-        anchors.fill: parent
-        anchors.margins: Style.spacing.panelPadding
-        spacing: Style.space(10)
-
-        HazardStripe {
-          width: parent.width
-          height: 12
+        id: headerCol
+        spacing: 2
+        Text {
+          text: "MAGI  //  GEOFRONT"
+          color: root.accent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.letterSpacing: 2.4
+          font.bold: true
+          font.capitalization: Font.AllUppercase
         }
+        Text {
+          text: root.host && root.host.pinned ? "PINNED  ·  ESC TO RELEASE" : "THE FATE OF MANKIND"
+          color: Qt.darker(root.foreground, 1.6)
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: 1.4
+        }
+      }
 
-        Item {
+      Column {
+        anchors.right: parent.right
+        Text {
+          anchors.right: parent.right
+          text: Qt.formatTime(clock.date, "HH:mm:ss")
+          color: root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.display
+          font.bold: true
+        }
+        Text {
+          anchors.right: parent.right
+          text: Qt.formatDate(clock.date, "dddd d MMMM yyyy").toUpperCase()
+          color: Qt.darker(root.foreground, 1.45)
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.letterSpacing: 1
+        }
+      }
+    }
+
+    Row {
+      width: parent.width
+      spacing: Style.space(12)
+      height: Style.space(168)
+
+      MagiPane {
+        width: (parent.width - Style.space(24)) / 3
+        height: parent.height
+        title: "BALTHASAR"
+        subtitle: "WEATHER"
+        Column {
           width: parent.width
-          height: headerCol.height
-
-          Column {
-            id: headerCol
-            spacing: 2
+          spacing: Style.space(6)
+          Row {
+            spacing: Style.space(8)
+            Text { text: root.weatherEmoji || "…"; font.pixelSize: Style.font.display; color: root.foreground }
             Text {
-              text: "MAGI  //  GEOFRONT"
-              color: root.accent
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              font.letterSpacing: 2.4
-              font.bold: true
-              font.capitalization: Font.AllUppercase
-            }
-            Text {
-              text: root.host && root.host.pinned ? "PINNED  ·  ESC TO RELEASE" : "THE FATE OF MANKIND"
-              color: Qt.darker(root.foreground, 1.6)
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.letterSpacing: 1.4
-            }
-          }
-
-          Column {
-            anchors.right: parent.right
-            Text {
-              anchors.right: parent.right
-              text: Qt.formatTime(clock.date, "HH:mm:ss")
+              text: root.weatherTemp || "—"
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.display
               font.bold: true
-            }
-            Text {
-              anchors.right: parent.right
-              text: Qt.formatDate(clock.date, "dddd d MMMM yyyy").toUpperCase()
-              color: Qt.darker(root.foreground, 1.45)
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              font.letterSpacing: 1
+              anchors.verticalCenter: parent.verticalCenter
             }
           }
-        }
-
-        Row {
-          width: parent.width
-          spacing: Style.space(12)
-          height: parent.height - Style.space(88)
-
-          MagiPane {
-            width: (parent.width - Style.space(24)) / 3
-            height: parent.height
-            title: "BALTHASAR"
-            subtitle: "WEATHER"
-            Column {
-              width: parent.width
-              spacing: Style.space(6)
-              Row {
-                spacing: Style.space(8)
-                Text { text: root.weatherEmoji || "…"; font.pixelSize: Style.font.display; color: root.foreground }
-                Text {
-                  text: root.weatherTemp || "—"
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.display
-                  font.bold: true
-                  anchors.verticalCenter: parent.verticalCenter
-                }
-              }
-              Text {
-                width: parent.width
-                text: (root.weatherCond || "AWAITING MAGI FEED").toUpperCase()
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                wrapMode: Text.Wrap
-              }
-              Text {
-                width: parent.width
-                text: [root.weatherPlace, root.weatherHum, root.weatherWind].filter(function(s) { return !!s }).join("  ·  ")
-                color: Qt.darker(root.foreground, 1.5)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                wrapMode: Text.Wrap
-              }
-            }
+          Text {
+            width: parent.width
+            text: (root.weatherCond || "AWAITING MAGI FEED").toUpperCase()
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            wrapMode: Text.Wrap
           }
-
-          MagiPane {
-            width: (parent.width - Style.space(24)) / 3
-            height: parent.height
-            title: "MELCHIOR"
-            subtitle: "SYSTEM"
-            Column {
-              width: parent.width
-              spacing: Style.space(12)
-              MeterRow { label: "CPU"; value: root.cpuUsage }
-              MeterRow { label: "MEM"; value: root.memUsage }
-              MeterRow { label: "DSK"; value: root.diskUsage }
-            }
-          }
-
-          MagiPane {
-            width: (parent.width - Style.space(24)) / 3
-            height: parent.height
-            title: "CASPER"
-            subtitle: "MEDIA"
-            Column {
-              width: parent.width
-              spacing: Style.space(8)
-              Text {
-                width: parent.width
-                text: root.trackTitle || "NO SIGNAL"
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.title
-                font.bold: true
-                elide: Text.ElideRight
-              }
-              Text {
-                width: parent.width
-                text: root.trackArtist || "Casper is idle"
-                color: Qt.darker(root.foreground, 1.45)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-              Row {
-                spacing: Style.space(10)
-                Repeater {
-                  model: [
-                    { glyph: "󰒮", action: "prev" },
-                    { glyph: root.playing ? "󰏤" : "󰐊", action: "play" },
-                    { glyph: "󰒭", action: "next" }
-                  ]
-                  Rectangle {
-                    required property var modelData
-                    width: Style.space(28)
-                    height: Style.space(28)
-                    radius: 4
-                    color: hit.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
-                    Text {
-                      anchors.centerIn: parent
-                      text: modelData.glyph
-                      color: root.foreground
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.title
-                    }
-                    MouseArea {
-                      id: hit
-                      anchors.fill: parent
-                      hoverEnabled: true
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: root.mediaAction(modelData.action)
-                    }
-                  }
-                }
-              }
-            }
+          Text {
+            width: parent.width
+            text: [root.weatherPlace, root.weatherHum, root.weatherWind].filter(function(s) { return !!s }).join("  ·  ")
+            color: Qt.darker(root.foreground, 1.5)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            wrapMode: Text.Wrap
           }
         }
       }
 
-      Item {
-        anchors.fill: parent
-        focus: root.opened && root.host && root.host.pinned
-        Keys.onPressed: function(event) {
-          if (event.key === Qt.Key_Escape) {
-            root.host.toggleDash()
-            event.accepted = true
-          } else if (event.text === "r" || event.text === "R") {
-            root.refreshAll()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Space) {
-            root.mediaAction("play")
-            event.accepted = true
+      MagiPane {
+        width: (parent.width - Style.space(24)) / 3
+        height: parent.height
+        title: "MELCHIOR"
+        subtitle: "SYSTEM"
+        Column {
+          width: parent.width
+          spacing: Style.space(12)
+          MeterRow { label: "CPU"; value: root.cpuUsage }
+          MeterRow { label: "MEM"; value: root.memUsage }
+          MeterRow { label: "DSK"; value: root.diskUsage }
+        }
+      }
+
+      MagiPane {
+        width: (parent.width - Style.space(24)) / 3
+        height: parent.height
+        title: "CASPER"
+        subtitle: "MEDIA"
+        Column {
+          width: parent.width
+          spacing: Style.space(8)
+          Text {
+            width: parent.width
+            text: root.trackTitle || "NO SIGNAL"
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.title
+            font.bold: true
+            elide: Text.ElideRight
+          }
+          Text {
+            width: parent.width
+            text: root.trackArtist || "Casper is idle"
+            color: Qt.darker(root.foreground, 1.45)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            elide: Text.ElideRight
+          }
+          Row {
+            spacing: Style.space(10)
+            Repeater {
+              model: [
+                { glyph: "󰒮", action: "prev" },
+                { glyph: root.playing ? "󰏤" : "󰐊", action: "play" },
+                { glyph: "󰒭", action: "next" }
+              ]
+              Rectangle {
+                required property var modelData
+                width: Style.space(28)
+                height: Style.space(28)
+                radius: 0
+                color: hit.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : Qt.rgba(1, 1, 1, 0.05)
+                Text {
+                  anchors.centerIn: parent
+                  text: modelData.glyph
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.title
+                }
+                MouseArea {
+                  id: hit
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.mediaAction(modelData.action)
+                }
+              }
+            }
           }
         }
       }

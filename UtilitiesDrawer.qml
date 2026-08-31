@@ -1,32 +1,29 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
 Item {
   id: root
 
-  required property var screen
-  required property var host
+  property var host: null
   property bool opened: false
-  property bool hovered: false
   property real cpuUsage: 0
   property real memUsage: 0
   property var prevCpu: null
 
-  readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
-  readonly property var borderSpec: Border.flat("#FF6A00", 2)
-  readonly property int cardWidth: Math.max(Math.round(host && host.rightIslandWidth ? host.rightIslandWidth : 0), Style.space(240))
-  readonly property real shownY: {
-    var gap = host && host.sideGap ? host.sideGap : Style.gapsOut
-    var size = host && host.barSize ? host.barSize : Style.bar.sizeHorizontal
-    return gap + size + 2
-  }
-  readonly property real shownX: Math.max(0, (panel.width || 1920) - cardWidth - (host && host.sideGap ? host.sideGap : Style.gapsOut))
+  readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
+
+  implicitWidth: col.implicitWidth
+  implicitHeight: col.implicitHeight
+  width: parent ? parent.width : implicitWidth
+  height: implicitHeight
+  opacity: opened ? 1 : 0
+  visible: opacity > 0.02
+  Behavior on opacity { NumberAnimation { duration: 160 } }
 
   function pct(value) { return Math.round((value || 0) * 100) + "%" }
 
@@ -83,131 +80,83 @@ Item {
     onTriggered: if (!statsProc.running) statsProc.running = true
   }
 
-  PanelWindow {
-    id: panel
-    screen: root.screen
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "magi-utilities"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    mask: Region { item: card }
+  Column {
+    id: col
+    width: root.width
+    spacing: Style.space(8)
 
-    Rectangle {
-      anchors.fill: card
-      anchors.margins: -2
-      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
-      color: "transparent"
-      border.width: 2
-      border.color: "#FF6A00"
-      opacity: 0.45
+    Text {
+      text: "SYS  //  STATUS"
+      color: root.accent
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      font.letterSpacing: 1.6
+      font.bold: true
     }
 
-    BorderSurface {
-      id: card
-      width: root.cardWidth
-      height: col.implicitHeight + Style.spacing.panelPadding * 2
-      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
-      x: root.shownX
-      y: root.opened ? root.shownY : root.shownY - 16
-      color: root.background
-      borderSpec: root.borderSpec
-      opacity: root.opened ? 1 : 0
-      Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-      Behavior on opacity { NumberAnimation { duration: 160 } }
+    Text {
+      text: "CPU  " + root.pct(root.cpuUsage)
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
+    }
+    Rectangle {
+      width: parent.width
+      height: 7
+      color: Qt.rgba(1, 1, 1, 0.08)
+      Rectangle {
+        width: Math.max(2, parent.width * root.cpuUsage)
+        height: parent.height
+        color: root.cpuUsage >= 0.85 ? Color.urgent : root.accent
+      }
+    }
 
-      HoverHandler { onHoveredChanged: root.hovered = hovered }
+    Text {
+      text: "MEM  " + root.pct(root.memUsage)
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
+    }
+    Rectangle {
+      width: parent.width
+      height: 7
+      color: Qt.rgba(1, 1, 1, 0.08)
+      Rectangle {
+        width: Math.max(2, parent.width * root.memUsage)
+        height: parent.height
+        color: root.memUsage >= 0.85 ? Color.urgent : "#A8FF3E"
+      }
+    }
 
-      Column {
-        id: col
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: Style.spacing.panelPadding
-        spacing: Style.space(8)
-
-        HazardStripe {
-          width: parent.width
-          height: 12
-        }
-
+    Repeater {
+      model: [
+        { label: "NIGHT LIGHT", cmd: ["omarchy", "toggle", "nightlight"] },
+        { label: "STAY AWAKE", cmd: ["omarchy", "toggle", "idle"] },
+        { label: "SILENCE", cmd: ["omarchy", "toggle", "notification", "silencing"] },
+        { label: "NEXT WALL", cmd: ["omarchy", "theme", "bg", "next"] }
+      ]
+      Rectangle {
+        required property var modelData
+        width: parent.width
+        height: Style.space(30)
+        radius: 0
+        color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : Qt.rgba(1, 1, 1, 0.04)
+        border.width: cell.containsMouse ? 1 : 0
+        border.color: "#FF6A00"
         Text {
-          text: "SYS  //  STATUS"
-          color: root.accent
-          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: 1.6
-          font.bold: true
-        }
-
-        Text {
-          text: "CPU  " + root.pct(root.cpuUsage)
+          anchors.centerIn: parent
+          text: modelData.label
           color: root.foreground
-          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-          font.pixelSize: Style.font.body
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.letterSpacing: 1.4
         }
-        Rectangle {
-          width: parent.width
-          height: 7
-          radius: 3
-          color: Qt.rgba(1, 1, 1, 0.08)
-          Rectangle {
-            width: Math.max(2, parent.width * root.cpuUsage)
-            height: parent.height
-            radius: parent.radius
-            color: root.cpuUsage >= 0.85 ? Color.urgent : root.accent
-          }
-        }
-
-        Text {
-          text: "MEM  " + root.pct(root.memUsage)
-          color: root.foreground
-          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-          font.pixelSize: Style.font.body
-        }
-        Rectangle {
-          width: parent.width
-          height: 7
-          radius: 3
-          color: Qt.rgba(1, 1, 1, 0.08)
-          Rectangle {
-            width: Math.max(2, parent.width * root.memUsage)
-            height: parent.height
-            radius: parent.radius
-            color: root.memUsage >= 0.85 ? Color.urgent : "#A8FF3E"
-          }
-        }
-
-        Repeater {
-          model: [
-            { label: "NIGHT LIGHT", cmd: ["omarchy", "toggle", "nightlight"] },
-            { label: "STAY AWAKE", cmd: ["omarchy", "toggle", "idle"] },
-            { label: "SILENCE", cmd: ["omarchy", "toggle", "notification", "silencing"] }
-          ]
-          Rectangle {
-            required property var modelData
-            width: parent.width
-            height: Style.space(30)
-            radius: 4
-            color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.18) : Qt.rgba(1, 1, 1, 0.04)
-            Text {
-              anchors.centerIn: parent
-              text: modelData.label
-              color: root.foreground
-              font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-              font.pixelSize: Style.font.bodySmall
-              font.letterSpacing: 1.4
-            }
-            MouseArea {
-              id: cell
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.run(modelData.cmd)
-            }
-          }
+        MouseArea {
+          id: cell
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.run(modelData.cmd)
         }
       }
     }

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.gedankenn.magi",
   "name": "MAGI",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "author": "Gedankenn",
   "license": "MIT",
-  "description": "Floating MAGI bar for Omarchy. Always on, hosts your usual widgets, plus edge drawers for dashboard, session, and utilities.",
+  "description": "Floating MAGI bar for Omarchy. Always on. Hover an island to expand it into the MAGI, NERV, or SYS menu.",
   "kinds": ["bar"],
   "entryPoints": {
     "bar": "MagiBar.qml"
