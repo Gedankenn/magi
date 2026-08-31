@@ -22,7 +22,7 @@ Item {
 
   property string position: "top"
   readonly property bool vertical: false
-  readonly property int barSize: Style.bar.sizeHorizontal + Style.space(14)
+  readonly property int barSize: 56
   readonly property bool revealed: true
   readonly property bool barHidden: false
   property int barHoverCount: 0
@@ -418,6 +418,8 @@ Item {
         id: centerIsland
         tag: "MAGI"
         edge: "top"
+        minWidth: 560
+        padX: 18
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         onXChanged: root.centerIslandX = x
@@ -631,11 +633,13 @@ Item {
     id: island
     property string tag: ""
     property string edge: ""
+    property int minWidth: 0
+    property int padX: root.islandPadX
     default property alias extra: chipRow.data
 
-    readonly property real headerWidth: tagLabel.implicitWidth + chipRow.implicitWidth + root.islandPadX * 2 + (tagLabel.visible ? Style.space(8) : 0)
+    readonly property real headerWidth: tagLabel.implicitWidth + chipRow.implicitWidth + island.padX * 2 + (tagLabel.visible ? 14 : 0)
 
-    implicitWidth: Math.max(root.barSize, headerWidth)
+    implicitWidth: Math.max(root.barSize, headerWidth, island.minWidth)
     implicitHeight: root.barSize
     width: implicitWidth
     height: implicitHeight
@@ -673,8 +677,8 @@ Item {
         id: headerRow
         anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Style.space(8)
-        height: Style.bar.sizeHorizontal
+        spacing: 12
+        height: parent.height - 16
 
         Text {
           id: tagLabel
@@ -682,8 +686,8 @@ Item {
           text: island.tag
           color: Color.accent
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 2.4
+          font.pixelSize: island.edge === "top" ? 15 : 12
+          font.letterSpacing: island.edge === "top" ? 3 : 2
           font.bold: true
           font.capitalization: Font.AllUppercase
           anchors.verticalCenter: parent.verticalCenter
@@ -691,7 +695,7 @@ Item {
 
         Row {
           id: chipRow
-          spacing: Style.space(4)
+          spacing: 8
           height: parent.height
           anchors.verticalCenter: parent.verticalCenter
         }
