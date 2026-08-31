@@ -57,6 +57,8 @@ Item {
   readonly property int dashDelay: 280
   readonly property int hideDelay: 420
   readonly property int sideGap: Style.gapsOut
+  readonly property int islandPadX: Style.space(10)
+  readonly property int islandRadius: Math.round((Style.bar.sizeHorizontal + Style.space(10)) / 2)
 
   function layoutEntries(region) {
     var serial = barConfigSerial
@@ -392,90 +394,50 @@ Item {
         Component.onDestruction: if (hovered) root.setBarHovered(false)
       }
 
-      BorderSurface {
-        id: pill
-        anchors.fill: parent
-        radius: Math.max(8, Style.cornerRadius + 2)
-        color: root.background
-        borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
+      mask: Region {
+        Region { item: leftIsland }
+        Region { item: centerIsland }
+        Region { item: rightIsland }
+      }
 
-        Column {
-          anchors.fill: parent
-          anchors.leftMargin: Style.space(8)
-          anchors.rightMargin: Style.space(8)
-          anchors.topMargin: 4
-          anchors.bottomMargin: 4
-          spacing: 2
-
-          Canvas {
-            width: parent.width
-            height: 5
-            onPaint: {
-              var ctx = getContext("2d")
-              var h = height
-              var w = 12
-              ctx.clearRect(0, 0, width, h)
-              for (var x = -h; x < width + h; x += w) {
-                ctx.fillStyle = (Math.floor((x + h) / w) % 2 === 0) ? String(Color.accent) : "#0c0a0d"
-                ctx.beginPath()
-                ctx.moveTo(x, 0)
-                ctx.lineTo(x + 8, 0)
-                ctx.lineTo(x + 8 - h, h)
-                ctx.lineTo(x - h, h)
-                ctx.closePath()
-                ctx.fill()
-              }
-            }
-            Component.onCompleted: requestPaint()
-            onWidthChanged: requestPaint()
+      MagiIsland {
+        id: leftIsland
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+          model: root.layoutEntries("left")
+          ModuleSlot {
+            required property var modelData
+            entry: modelData
+            region: "left"
           }
+        }
+      }
 
-          Item {
-            width: parent.width
-            height: parent.height - 7
+      MagiIsland {
+        id: centerIsland
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+          model: root.layoutEntries("center")
+          ModuleSlot {
+            required property var modelData
+            entry: modelData
+            region: "center"
+          }
+        }
+      }
 
-            Row {
-              id: leftRow
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: 0
-              Repeater {
-                model: root.layoutEntries("left")
-                ModuleSlot {
-                  required property var modelData
-                  entry: modelData
-                  region: "left"
-                }
-              }
-            }
-
-            Row {
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: 0
-              Repeater {
-                model: root.layoutEntries("center")
-                ModuleSlot {
-                  required property var modelData
-                  entry: modelData
-                  region: "center"
-                }
-              }
-            }
-
-            Row {
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: 0
-              Repeater {
-                model: root.layoutEntries("right")
-                ModuleSlot {
-                  required property var modelData
-                  entry: modelData
-                  region: "right"
-                }
-              }
-            }
+      MagiIsland {
+        id: rightIsland
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+          model: root.layoutEntries("right")
+          ModuleSlot {
+            required property var modelData
+            entry: modelData
+            region: "right"
           }
         }
       }
@@ -504,6 +466,64 @@ Item {
             font.pixelSize: Style.font.bodySmall
           }
         }
+      }
+    }
+  }
+
+  component MagiIsland: Item {
+    id: island
+    default property alias extra: chipRow.data
+
+    implicitWidth: plate.implicitWidth
+    implicitHeight: plate.implicitHeight
+    width: implicitWidth
+    height: implicitHeight
+    visible: chipRow.children.length > 0
+
+    Rectangle {
+      anchors.fill: plate
+      anchors.margins: -2
+      radius: plate.radius + 2
+      color: "transparent"
+      border.width: 1
+      border.color: Color.accent
+      opacity: 0.28
+    }
+
+    BorderSurface {
+      id: plate
+      implicitWidth: Math.max(root.barSize, chipRow.implicitWidth + root.islandPadX * 2)
+      implicitHeight: root.barSize
+      width: implicitWidth
+      height: implicitHeight
+      radius: root.islandRadius
+      color: root.background
+      borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, 1)
+
+      Rectangle {
+        width: parent.width
+        height: 2
+        radius: 1
+        anchors.top: parent.top
+        anchors.topMargin: 1
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: plate.radius
+        anchors.rightMargin: plate.radius
+        gradient: Gradient {
+          orientation: Gradient.Horizontal
+          GradientStop { position: 0; color: "#FF6A00" }
+          GradientStop { position: 0.55; color: "#7B2FBE" }
+          GradientStop { position: 1; color: "#00E5FF" }
+        }
+      }
+
+      Row {
+        id: chipRow
+        spacing: Style.space(4)
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.horizontalCenter: parent.horizontalCenter
+        height: Style.bar.sizeHorizontal
       }
     }
   }

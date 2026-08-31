@@ -2,14 +2,14 @@
 
 <p align="center">
   <strong>A floating MAGI bar for Omarchy.</strong><br>
-  Always on. Drawers still slide in from the edges.
+  Three cyberpunk HUD islands. Always on. Drawers from the edges.
 </p>
 
 <p align="center">
   <img src="preview.png" width="640" alt="MAGI dashboard sliding from the top edge: Balthasar weather, Melchior meters, Casper media">
 </p>
 
-MAGI **is** the bar. It replaces `omarchy.bar` with a floating pill that stays on screen, like Caelestia. Your existing layout (menu, workspaces, clock, network, tray, …) lives inside that pill. Hover the top gap for the MAGI dashboard; the side edges open the NERV session and Casper utility drawers.
+MAGI **is** the bar. It replaces `omarchy.bar` with three floating HUD islands — left, center, right — instead of one slab. Your existing layout (menu, workspaces, clock, network, tray, …) is grouped into those chips. Hover the top gap for the MAGI dashboard; the side edges open the NERV session and Casper utility drawers.
 
 No sudo. No extra daemon.
 
