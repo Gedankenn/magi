@@ -503,9 +503,9 @@ Item {
       anchors.margins: -2
       radius: plate.radius
       color: "transparent"
-      border.width: 1
-      border.color: Color.accent
-      opacity: 0.28
+      border.width: 2
+      border.color: "#FF6A00"
+      opacity: 0.45
     }
 
     BorderSurface {
@@ -516,14 +516,14 @@ Item {
       height: implicitHeight
       radius: root.islandRadius
       color: root.background
-      borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, 1)
+      borderSpec: Border.flat("#FF6A00", 2)
       clip: true
 
       HazardStripe {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 6
+        height: 11
       }
 
       Row {

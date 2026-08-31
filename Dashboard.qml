@@ -17,7 +17,7 @@ Item {
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
-  readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
+  readonly property var borderSpec: Border.flat("#FF6A00", 2)
   readonly property string fontFamily: Style.font.family
   readonly property int cardWidth: {
     var island = host && host.centerIslandWidth ? host.centerIslandWidth : 0
@@ -281,9 +281,9 @@ Item {
       anchors.margins: -2
       radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
       color: "transparent"
-      border.width: 1
-      border.color: root.accent
-      opacity: 0.28
+      border.width: 2
+      border.color: "#FF6A00"
+      opacity: 0.45
     }
 
     BorderSurface {
@@ -310,7 +310,7 @@ Item {
 
         HazardStripe {
           width: parent.width
-          height: 7
+          height: 12
         }
 
         Item {
