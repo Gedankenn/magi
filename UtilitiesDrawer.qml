@@ -82,7 +82,7 @@ Item {
   PanelWindow {
     id: panel
     screen: root.screen
-    visible: root.opened || card.x < root.parkedX - 2
+    visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

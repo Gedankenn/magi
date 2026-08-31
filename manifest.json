@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "id": "io.github.gedankenn.magi",
   "name": "MAGI",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Gedankenn",
   "license": "MIT",
-  "description": "Caelestia-style edge drawers for Omarchy: auto-hiding bar, MAGI dashboard, session and utilities that slide in when the pointer hits a screen edge.",
-  "kinds": ["service"],
+  "description": "Floating MAGI bar for Omarchy. Parks off-screen, slides in from the top edge, and hosts your usual widgets plus MAGI drawers.",
+  "kinds": ["bar"],
   "entryPoints": {
-    "service": "Service.qml"
+    "bar": "MagiBar.qml"
   }
 }

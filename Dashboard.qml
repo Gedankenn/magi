@@ -23,8 +23,7 @@ Item {
   readonly property int cardHeight: Style.space(272)
   readonly property real parkedY: -cardHeight - 24
   readonly property real shownY: {
-    var bar = host && host.bar ? host.bar : null
-    var barSize = (bar && !bar.barHidden) ? (bar.barSize || Style.bar.sizeHorizontal) : 0
+    var barSize = (host && !host.barHidden) ? (host.barSize || Style.bar.sizeHorizontal) : 0
     return 8 + barSize
   }
 
@@ -258,7 +257,7 @@ Item {
   PanelWindow {
     id: panel
     screen: root.screen
-    visible: root.opened || card.y > root.parkedY + 2
+    visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
