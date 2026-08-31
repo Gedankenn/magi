@@ -20,8 +20,8 @@ Item {
   property string position: "top"
   readonly property bool vertical: false
   readonly property int barSize: Style.bar.sizeHorizontal + Style.space(14)
-  property bool revealed: false
-  readonly property bool barHidden: !revealed
+  readonly property bool revealed: true
+  readonly property bool barHidden: false
   property int barHoverCount: 0
   readonly property bool barHovered: barHoverCount > 0
   property var activePopout: null
@@ -93,12 +93,10 @@ Item {
       else if ("close" in activePopout) activePopout.close()
     }
     activePopout = owner
-    revealBar()
   }
 
   function releasePopout(owner) {
     if (activePopout === owner) activePopout = null
-    requestHideBar()
   }
 
   function moduleWidgets(pluginId) {
@@ -143,7 +141,6 @@ Item {
   function summonBarWidget(pluginId) {
     var item = findPanelWidget(pluginId)
     if (!item || typeof item.open !== "function") return false
-    revealBar()
     item.open()
     return true
   }
@@ -217,35 +214,20 @@ Item {
   function registerClickTarget(target) {}
   function unregisterClickTarget(target) {}
 
-  function revealBar() {
-    revealed = true
-    hideBarTimer.stop()
-  }
-
-  function requestHideBar() {
-    if (pinned || dashOpen || barBusy || topHot || sessionOpen || utilOpen) return
-    hideBarTimer.restart()
-  }
-
   function openDash() {
     dashOpen = true
-    revealBar()
     dashDelayTimer.stop()
   }
 
   function closeDash() {
     if (pinned) return
     dashOpen = false
-    requestHideBar()
   }
 
   function toggleDash() {
     pinned = !pinned
     if (pinned) openDash()
-    else {
-      dashOpen = false
-      requestHideBar()
-    }
+    else dashOpen = false
   }
 
   function closeSides() {
@@ -258,14 +240,10 @@ Item {
     if (edge === "top") {
       topCount = Math.max(0, topCount + delta)
       if (topHot) {
-        revealBar()
         if (!dashOpen && !pinned) dashDelayTimer.restart()
       } else {
         dashDelayTimer.stop()
-        if (!pinned) {
-          dashCloseTimer.restart()
-          requestHideBar()
-        }
+        if (!pinned) dashCloseTimer.restart()
       }
     } else if (edge === "left") {
       leftCount = Math.max(0, leftCount + delta)
@@ -286,20 +264,10 @@ Item {
 
   function setBarHovered(hovered) {
     barHoverCount = Math.max(0, barHoverCount + (hovered ? 1 : -1))
-    if (barHovered) revealBar()
-    else requestHideBar()
   }
 
   Timer { id: dashDelayTimer; interval: root.dashDelay; onTriggered: if (root.topHot) root.openDash() }
   Timer { id: dashCloseTimer; interval: 480; onTriggered: if (!root.topHot && !root.pinned) root.closeDash() }
-  Timer {
-    id: hideBarTimer
-    interval: root.hideDelay
-    onTriggered: {
-      if (root.pinned || root.dashOpen || root.barBusy || root.topHot || root.sessionOpen || root.utilOpen) return
-      root.revealed = false
-    }
-  }
   Timer { id: leftDelayTimer; interval: 140; onTriggered: if (root.leftHot) root.sessionOpen = true }
   Timer { id: sessionCloseTimer; interval: 180; onTriggered: if (!root.leftHot) root.sessionOpen = false }
   Timer { id: rightDelayTimer; interval: 140; onTriggered: if (root.rightHot) root.utilOpen = true }
@@ -309,9 +277,9 @@ Item {
     target: "io.github.gedankenn.magi"
     function toggle(): void { root.toggleDash() }
     function open(): void { root.pinned = true; root.openDash() }
-    function close(): void { root.pinned = false; root.dashOpen = false; root.closeSides(); root.requestHideBar() }
+    function close(): void { root.pinned = false; root.dashOpen = false; root.closeSides() }
     function show(): void { root.pinned = true; root.openDash() }
-    function hide(): void { root.pinned = false; root.dashOpen = false; root.requestHideBar() }
+    function hide(): void { root.pinned = false; root.dashOpen = false }
   }
 
   Variants {
@@ -358,12 +326,6 @@ Item {
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-      Rectangle {
-        anchors.fill: parent
-        color: Color.accent
-        opacity: root.revealed ? 0 : 0.9
-        Behavior on opacity { NumberAnimation { duration: 160 } }
-      }
       HoverHandler { onHoveredChanged: root.bump("top", hovered) }
     }
 
@@ -405,7 +367,7 @@ Item {
       id: barWindow
       screen: seat.screen
       visible: true
-      exclusionMode: ExclusionMode.Ignore
+      exclusionMode: ExclusionMode.Auto
       implicitHeight: root.barSize
       color: "transparent"
       WlrLayershell.namespace: "magi-bar"
@@ -419,8 +381,8 @@ Item {
         right: true
       }
       margins {
-        top: root.position !== "bottom" ? (root.revealed ? root.sideGap : -root.barSize) : 0
-        bottom: root.position === "bottom" ? (root.revealed ? root.sideGap : -root.barSize) : 0
+        top: root.position !== "bottom" ? root.sideGap : 0
+        bottom: root.position === "bottom" ? root.sideGap : 0
         left: root.sideGap
         right: root.sideGap
       }
