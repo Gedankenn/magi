@@ -98,7 +98,7 @@ Item {
     Rectangle {
       anchors.fill: card
       anchors.margins: -2
-      radius: (host && host.islandRadius ? host.islandRadius : 16) + 2
+      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
       color: "transparent"
       border.width: 1
       border.color: root.accent
@@ -109,7 +109,7 @@ Item {
       id: card
       width: root.cardWidth
       height: col.implicitHeight + Style.spacing.panelPadding * 2
-      radius: host && host.islandRadius ? host.islandRadius : Math.max(8, Style.cornerRadius)
+      radius: host && host.islandRadius !== undefined ? host.islandRadius : 0
       x: root.shownX
       y: root.opened ? root.shownY : root.shownY - 16
       color: root.background

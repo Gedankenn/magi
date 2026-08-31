@@ -58,7 +58,7 @@ Item {
   readonly property int hideDelay: 420
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(10)
-  readonly property int islandRadius: Math.round((Style.bar.sizeHorizontal + Style.space(10)) / 2)
+  readonly property int islandRadius: 0
   property real leftIslandWidth: 0
   property real centerIslandWidth: 0
   property real rightIslandWidth: 0
@@ -501,7 +501,7 @@ Item {
     Rectangle {
       anchors.fill: plate
       anchors.margins: -2
-      radius: plate.radius + 2
+      radius: plate.radius
       color: "transparent"
       border.width: 1
       border.color: Color.accent
