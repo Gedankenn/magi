@@ -61,8 +61,8 @@ Item {
 
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
-  readonly property int dashDelay: 80
-  readonly property int hideDelay: 360
+  readonly property int dashDelay: 0
+  readonly property int hideDelay: 520
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(10)
   readonly property int islandRadius: 0
@@ -261,7 +261,13 @@ Item {
     if (edge === "top") dashIslandHot = hovered
     else if (edge === "left") sessionIslandHot = hovered
     else if (edge === "right") utilIslandHot = hovered
-    syncHover(edge)
+    if (hovered) {
+      if (edge === "top") { sessionOpen = false; utilOpen = false; dashOpen = true; dashCloseTimer.stop(); dashDelayTimer.stop() }
+      else if (edge === "left") { if (!pinned) dashOpen = false; utilOpen = false; sessionOpen = true; sessionCloseTimer.stop(); leftDelayTimer.stop() }
+      else if (edge === "right") { if (!pinned) dashOpen = false; sessionOpen = false; utilOpen = true; utilCloseTimer.stop(); rightDelayTimer.stop() }
+    } else {
+      syncHover(edge)
+    }
   }
 
   function setMenuHot(edge, hovered) {
@@ -505,28 +511,40 @@ Item {
       left: posX
     }
 
-    HoverHandler {
-      enabled: dropWin.opened
-      onHoveredChanged: root.setMenuHot(dropWin.edge, hovered)
-      Component.onDestruction: root.setMenuHot(dropWin.edge, false)
-    }
-
-    BorderSurface {
-      id: plate
+    Item {
       anchors.fill: parent
-      radius: root.islandRadius
-      color: root.background
-      borderSpec: Border.flat("#FF6A00", 2)
 
-      Loader {
+      HoverHandler {
+        blocking: false
+        enabled: dropWin.opened
+        onHoveredChanged: root.setMenuHot(dropWin.edge, hovered)
+        Component.onDestruction: root.setMenuHot(dropWin.edge, false)
+      }
+
+      MouseArea {
         anchors.fill: parent
-        anchors.margins: Style.space(10)
-        active: dropWin.menuSource !== ""
-        source: dropWin.menuSource
-        onLoaded: {
-          if (!item) return
-          item.host = root
-          item.opened = Qt.binding(function() { return dropWin.opened })
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onContainsMouseChanged: root.setMenuHot(dropWin.edge, containsMouse)
+      }
+
+      BorderSurface {
+        id: plate
+        anchors.fill: parent
+        radius: root.islandRadius
+        color: root.background
+        borderSpec: Border.flat("#FF6A00", 2)
+
+        Loader {
+          anchors.fill: parent
+          anchors.margins: Style.space(10)
+          active: dropWin.menuSource !== ""
+          source: dropWin.menuSource
+          onLoaded: {
+            if (!item) return
+            item.host = root
+            item.opened = Qt.binding(function() { return dropWin.opened })
+          }
         }
       }
     }
@@ -546,18 +564,16 @@ Item {
     height: implicitHeight
 
     HoverHandler {
+      blocking: false
       onHoveredChanged: root.setIslandHot(island.edge, hovered)
       Component.onDestruction: root.setIslandHot(island.edge, false)
     }
 
-    Rectangle {
-      anchors.fill: plate
-      anchors.margins: -2
-      radius: plate.radius
-      color: "transparent"
-      border.width: 2
-      border.color: "#FF6A00"
-      opacity: 0.45
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      acceptedButtons: Qt.NoButton
+      onContainsMouseChanged: root.setIslandHot(island.edge, containsMouse)
     }
 
     BorderSurface {
@@ -634,6 +650,18 @@ Item {
 
     Component.onCompleted: root.registerModuleSlot(slot)
     Component.onDestruction: root.unregisterModuleSlot(slot)
+
+    HoverHandler {
+      blocking: false
+      onHoveredChanged: {
+        var edge = slot.region === "left" ? "left" : (slot.region === "right" ? "right" : "top")
+        root.setIslandHot(edge, hovered)
+      }
+      Component.onDestruction: {
+        var edge = slot.region === "left" ? "left" : (slot.region === "right" ? "right" : "top")
+        root.setIslandHot(edge, false)
+      }
+    }
 
     Loader {
       id: registryLoader
