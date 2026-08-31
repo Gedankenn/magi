@@ -22,7 +22,7 @@ Item {
 
   property string position: "top"
   readonly property bool vertical: false
-  readonly property int barSize: 56
+  readonly property int barSize: 39
   readonly property bool revealed: true
   readonly property bool barHidden: false
   property int barHoverCount: 0
@@ -41,6 +41,7 @@ Item {
   property color background: Color.menu.background
   property color urgent: Color.bar.active
   property string fontFamily: "Nimbus Sans Narrow"
+  property string displayFont: "Chakra Petch"
 
   property bool pinned: false
   property bool dashOpen: false
@@ -64,7 +65,7 @@ Item {
   readonly property int dashDelay: 0
   readonly property int hideDelay: 520
   readonly property int sideGap: Style.gapsOut
-  readonly property int islandPadX: Style.space(10)
+  readonly property int islandPadX: Style.space(12)
   readonly property int islandRadius: 0
   property real leftIslandX: 0
   property real leftIslandWidth: 0
@@ -347,12 +348,12 @@ Item {
 
     readonly property int dropTop: root.sideGap + root.barSize - 2
     readonly property int screenW: screen ? Math.round(screen.width) : 1920
-    readonly property int sessionW: 320
-    readonly property int sessionH: 280
-    readonly property int dashW: Math.max(960, screenW - 48)
-    readonly property int dashH: 560
-    readonly property int utilW: 340
-    readonly property int utilH: 330
+    readonly property int sessionW: 300
+    readonly property int sessionH: 300
+    readonly property int dashW: 860
+    readonly property int dashH: 430
+    readonly property int utilW: 320
+    readonly property int utilH: 480
 
     function clampX(x, w) {
       return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
@@ -420,6 +421,7 @@ Item {
         edge: "top"
         minWidth: 560
         padX: 18
+        active: root.dashOpen
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         onXChanged: root.centerIslandX = x
@@ -584,10 +586,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: dropWin.heading
             color: "#FF6A00"
-            font.family: root.fontFamily
+            font.family: root.displayFont
             font.pixelSize: 16
             font.letterSpacing: 2
-            font.bold: true
+            font.weight: Font.Bold
           }
 
           Text {
@@ -596,10 +598,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: dropWin.kicker
             color: "#F4F0E6"
-            font.family: root.fontFamily
+            font.family: root.displayFont
             font.pixelSize: 14
-            font.letterSpacing: 2
-            font.bold: true
+            font.letterSpacing: 3
+            font.weight: 600
           }
         }
 
@@ -635,9 +637,10 @@ Item {
     property string edge: ""
     property int minWidth: 0
     property int padX: root.islandPadX
+    property bool active: false
     default property alias extra: chipRow.data
 
-    readonly property real headerWidth: tagLabel.implicitWidth + chipRow.implicitWidth + island.padX * 2 + (tagLabel.visible ? 14 : 0)
+    readonly property real headerWidth: island.padX * 2 + headerRow2.implicitWidth + 18 + chipRow.implicitWidth
 
     implicitWidth: Math.max(root.barSize, headerWidth, island.minWidth)
     implicitHeight: root.barSize
@@ -666,38 +669,66 @@ Item {
       borderSpec: Border.flat("#FF6A00", 2)
       clip: true
 
-      HazardStripe {
+      HazardTape {
+        id: tape
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 11
+        height: island.edge === "top" ? 12 : 10
+        endInset: island.edge === "top" ? 7 : 5
+        label: island.tag
+        stripe: "#FF6A00"
+        gap: plate.color
       }
 
-      Row {
-        id: headerRow
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 12
-        height: parent.height - 16
+      Item {
+        id: headerLayout
+        anchors.fill: parent
+        anchors.leftMargin: island.padX
+        anchors.rightMargin: island.padX
 
-        Text {
-          id: tagLabel
-          visible: island.tag !== ""
-          text: island.tag
-          color: Color.accent
-          font.family: root.fontFamily
-          font.pixelSize: island.edge === "top" ? 15 : 12
-          font.letterSpacing: island.edge === "top" ? 3 : 2
-          font.bold: true
-          font.capitalization: Font.AllUppercase
+        Row {
+          id: headerRow2
+          spacing: 14
+          anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
+          height: parent.height
+
+          Text {
+            id: tagLabel
+            visible: island.tag !== ""
+            text: island.tag
+            color: Color.accent
+            font.family: root.displayFont
+            font.pixelSize: island.edge === "top" ? 16 : 12
+            font.letterSpacing: island.edge === "top" ? 4 : 2
+            font.weight: Font.Bold
+            font.capitalization: Font.AllUppercase
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Rectangle {
+            id: statusLamp
+            visible: island.active
+            width: island.edge === "top" ? 30 : 5
+            height: 3
+            radius: 2
+            anchors.verticalCenter: parent.verticalCenter
+            color: "transparent"
+            border.width: 1
+            border.color: root.pinned ? "#A8FF3E" : "#FF6A00"
+            opacity: 0.9
+          }
         }
 
         Row {
           id: chipRow
-          spacing: 8
+          spacing: 12
           height: parent.height
+          anchors.left: headerRow2.right
+          anchors.leftMargin: 18
           anchors.verticalCenter: parent.verticalCenter
+          layoutDirection: Qt.LeftToRight
         }
       }
     }
@@ -727,7 +758,7 @@ Item {
     implicitWidth: activeItem && activeItem.visible ? activeItem.implicitWidth : 0
     implicitHeight: activeItem && activeItem.visible ? activeItem.implicitHeight : 0
     width: implicitWidth
-    height: implicitHeight
+    height: parent ? parent.height : implicitHeight
 
     Component.onCompleted: root.registerModuleSlot(slot)
     Component.onDestruction: root.unregisterModuleSlot(slot)

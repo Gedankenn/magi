@@ -13,6 +13,7 @@ Item {
   readonly property color accent: "#FF6A00"
   readonly property color blood: "#C41E3A"
   readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
+  readonly property string displayFont: host && host.displayFont ? host.displayFont : "Chakra Petch"
 
   width: parent ? parent.width : 300
   height: parent ? parent.height : 240
@@ -28,16 +29,22 @@ Item {
 
   Column {
     anchors.fill: parent
-    anchors.margins: 18
-    spacing: 10
+    anchors.margins: 14
+    spacing: 8
 
     Text {
       text: "COMMAND AUTHORITY"
       color: root.accent
-      font.family: root.fontFamily
-      font.pixelSize: 13
-      font.letterSpacing: 2
-      font.bold: true
+      font.family: root.displayFont
+      font.pixelSize: 12
+      font.letterSpacing: 2.5
+      font.weight: 600
+    }
+
+    Rectangle {
+      width: parent.width
+      height: 1
+      color: Qt.rgba(1, 0.42, 0, 0.35)
     }
 
     Repeater {
@@ -50,7 +57,7 @@ Item {
       Rectangle {
         required property var modelData
         width: parent.width
-        height: 44
+        height: 36
         color: cell.containsMouse ? (modelData.danger ? Qt.rgba(0.77, 0.12, 0.23, 0.35) : Qt.rgba(1, 0.42, 0, 0.22)) : "#141014"
         border.width: 1
         border.color: cell.containsMouse ? (modelData.danger ? root.blood : root.accent) : Qt.rgba(1, 0.42, 0, 0.28)
@@ -58,10 +65,10 @@ Item {
           anchors.centerIn: parent
           text: modelData.label
           color: root.paper
-          font.family: root.fontFamily
-          font.pixelSize: 16
-          font.letterSpacing: 2.2
-          font.bold: true
+          font.family: root.displayFont
+          font.pixelSize: 13
+          font.letterSpacing: 2
+          font.weight: 600
         }
         MouseArea {
           id: cell
