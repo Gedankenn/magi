@@ -47,24 +47,30 @@ Item {
   property bool sessionOpen: false
   property bool utilOpen: false
   property int dashSerial: 0
-  property int topCount: 0
-  property int leftCount: 0
-  property int rightCount: 0
-  readonly property bool topHot: topCount > 0
-  readonly property bool leftHot: leftCount > 0
-  readonly property bool rightHot: rightCount > 0
-  readonly property bool barBusy: barHovered || !!activePopout
+  property bool dashIslandHot: false
+  property bool dashMenuHot: false
+  property bool sessionIslandHot: false
+  property bool sessionMenuHot: false
+  property bool utilIslandHot: false
+  property bool utilMenuHot: false
+  readonly property bool topHot: dashIslandHot || dashMenuHot
+  readonly property bool leftHot: sessionIslandHot || sessionMenuHot
+  readonly property bool rightHot: utilIslandHot || utilMenuHot
+  readonly property bool anyMenuOpen: dashOpen || sessionOpen || utilOpen
+  readonly property bool barBusy: barHovered || !!activePopout || anyMenuOpen
 
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
-  readonly property int dashDelay: 90
-  readonly property int hideDelay: 280
+  readonly property int dashDelay: 80
+  readonly property int hideDelay: 360
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(10)
   readonly property int islandRadius: 0
-  readonly property int overlayHeight: Style.space(420)
+  property real leftIslandX: 0
   property real leftIslandWidth: 0
+  property real centerIslandX: 0
   property real centerIslandWidth: 0
+  property real rightIslandX: 0
   property real rightIslandWidth: 0
 
   function layoutEntries(region) {
@@ -211,6 +217,7 @@ Item {
   }
 
   function showTooltip(target, text) {
+    if (anyMenuOpen) return
     tooltipTarget = target
     tooltipText = String(text || "")
     tooltipShown = tooltipText !== ""
@@ -233,6 +240,7 @@ Item {
     utilOpen = false
     dashOpen = true
     dashDelayTimer.stop()
+    hideTooltip(tooltipTarget)
   }
 
   function closeDash() {
@@ -252,34 +260,47 @@ Item {
     if (!pinned) dashOpen = false
   }
 
-  function bump(edge, entered) {
-    var delta = entered ? 1 : -1
+  function setIslandHot(edge, hovered) {
+    if (edge === "top") dashIslandHot = hovered
+    else if (edge === "left") sessionIslandHot = hovered
+    else if (edge === "right") utilIslandHot = hovered
+    syncHover(edge)
+  }
+
+  function setMenuHot(edge, hovered) {
+    if (edge === "top") dashMenuHot = hovered
+    else if (edge === "left") sessionMenuHot = hovered
+    else if (edge === "right") utilMenuHot = hovered
+    syncHover(edge)
+  }
+
+  function syncHover(edge) {
     if (edge === "top") {
-      topCount = Math.max(0, topCount + delta)
-      if (topHot) {
+      if (topHot || pinned) {
         sessionOpen = false
         utilOpen = false
-        if (!dashOpen && !pinned) dashDelayTimer.restart()
+        if (!dashOpen) dashDelayTimer.restart()
+        dashCloseTimer.stop()
       } else {
         dashDelayTimer.stop()
         if (!pinned) dashCloseTimer.restart()
       }
     } else if (edge === "left") {
-      leftCount = Math.max(0, leftCount + delta)
       if (leftHot) {
         if (!pinned) dashOpen = false
         utilOpen = false
         leftDelayTimer.restart()
+        sessionCloseTimer.stop()
       } else {
         leftDelayTimer.stop()
         sessionCloseTimer.restart()
       }
     } else if (edge === "right") {
-      rightCount = Math.max(0, rightCount + delta)
       if (rightHot) {
         if (!pinned) dashOpen = false
         sessionOpen = false
         rightDelayTimer.restart()
+        utilCloseTimer.stop()
       } else {
         rightDelayTimer.stop()
         utilCloseTimer.restart()
@@ -291,7 +312,7 @@ Item {
     barHoverCount = Math.max(0, barHoverCount + (hovered ? 1 : -1))
   }
 
-  Timer { id: dashDelayTimer; interval: root.dashDelay; onTriggered: if (root.topHot) root.openDash() }
+  Timer { id: dashDelayTimer; interval: root.dashDelay; onTriggered: if (root.topHot || root.pinned) root.openDash() }
   Timer { id: dashCloseTimer; interval: root.hideDelay; onTriggered: if (!root.topHot && !root.pinned) root.closeDash() }
   Timer { id: leftDelayTimer; interval: root.dashDelay; onTriggered: if (root.leftHot) root.sessionOpen = true }
   Timer { id: sessionCloseTimer; interval: root.hideDelay; onTriggered: if (!root.leftHot) root.sessionOpen = false }
@@ -321,17 +342,19 @@ Item {
     id: seat
     required property var screen
 
+    readonly property int dropY: root.sideGap + root.barSize - 2
+    readonly property int dropPad: Style.space(10)
+
     PanelWindow {
       id: barWindow
       screen: seat.screen
       visible: true
-      exclusionMode: ExclusionMode.Normal
-      exclusiveZone: root.barSize
-      implicitHeight: root.overlayHeight
+      exclusionMode: ExclusionMode.Auto
+      implicitHeight: root.barSize
       color: "transparent"
       WlrLayershell.namespace: "magi-bar"
       WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: root.pinned ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
       anchors {
         top: root.position !== "bottom"
@@ -346,40 +369,19 @@ Item {
         right: root.sideGap
       }
 
-      HoverHandler {
-        onHoveredChanged: root.setBarHovered(hovered)
-        Component.onDestruction: if (hovered) root.setBarHovered(false)
-      }
-
       mask: Region {
         Region { item: leftIsland }
         Region { item: centerIsland }
         Region { item: rightIsland }
       }
 
-      Item {
-        anchors.fill: parent
-        focus: root.pinned
-        Keys.onPressed: function(event) {
-          if (event.key === Qt.Key_Escape) {
-            root.toggleDash()
-            event.accepted = true
-          } else if (event.text === "r" || event.text === "R") {
-            root.dashSerial++
-            event.accepted = true
-          }
-        }
-      }
-
       MagiIsland {
         id: leftIsland
         tag: "NERV"
         edge: "left"
-        menuSource: "SessionDrawer.qml"
-        expanded: root.sessionOpen
-        menuMinWidth: Style.space(228)
         anchors.left: parent.left
-        anchors.top: parent.top
+        anchors.verticalCenter: parent.verticalCenter
+        onXChanged: root.leftIslandX = x
         onWidthChanged: root.leftIslandWidth = width
         Repeater {
           model: root.layoutEntries("left")
@@ -395,11 +397,9 @@ Item {
         id: centerIsland
         tag: "MAGI"
         edge: "top"
-        menuSource: "Dashboard.qml"
-        expanded: root.dashOpen
-        menuMinWidth: Style.space(640)
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
+        anchors.verticalCenter: parent.verticalCenter
+        onXChanged: root.centerIslandX = x
         onWidthChanged: root.centerIslandWidth = width
         Repeater {
           model: root.layoutEntries("center")
@@ -415,11 +415,9 @@ Item {
         id: rightIsland
         tag: "SYS"
         edge: "right"
-        menuSource: "UtilitiesDrawer.qml"
-        expanded: root.utilOpen
-        menuMinWidth: Style.space(248)
         anchors.right: parent.right
-        anchors.top: parent.top
+        anchors.verticalCenter: parent.verticalCenter
+        onXChanged: root.rightIslandX = x
         onWidthChanged: root.rightIslandWidth = width
         Repeater {
           model: root.layoutEntries("right")
@@ -457,30 +455,140 @@ Item {
         }
       }
     }
+
+    PanelWindow {
+      id: dropWindow
+      screen: seat.screen
+      visible: true
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      WlrLayershell.namespace: "magi-drop"
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.keyboardFocus: root.pinned ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      anchors { top: true; bottom: true; left: true; right: true }
+      mask: Region {
+        Region { item: sessionDrop }
+        Region { item: dashDrop }
+        Region { item: utilDrop }
+      }
+
+      Item {
+        anchors.fill: parent
+        focus: root.pinned
+        Keys.onPressed: function(event) {
+          if (event.key === Qt.Key_Escape) {
+            root.toggleDash()
+            event.accepted = true
+          } else if (event.text === "r" || event.text === "R") {
+            root.dashSerial++
+            event.accepted = true
+          }
+        }
+      }
+
+      MagiDrop {
+        id: sessionDrop
+        edge: "left"
+        opened: root.sessionOpen
+        menuSource: "SessionDrawer.qml"
+        minWidth: Style.space(228)
+        x: root.sideGap + root.leftIslandX
+        y: seat.dropY
+        targetWidth: root.leftIslandWidth
+      }
+
+      MagiDrop {
+        id: dashDrop
+        edge: "top"
+        opened: root.dashOpen
+        menuSource: "Dashboard.qml"
+        minWidth: Style.space(640)
+        x: root.sideGap + root.centerIslandX + root.centerIslandWidth / 2 - width / 2
+        y: seat.dropY
+        targetWidth: root.centerIslandWidth
+      }
+
+      MagiDrop {
+        id: utilDrop
+        edge: "right"
+        opened: root.utilOpen
+        menuSource: "UtilitiesDrawer.qml"
+        minWidth: Style.space(248)
+        x: root.sideGap + root.rightIslandX + root.rightIslandWidth - width
+        y: seat.dropY
+        targetWidth: root.rightIslandWidth
+      }
+    }
+  }
+
+  component MagiDrop: Item {
+    id: drop
+    property string edge: ""
+    property bool opened: false
+    property string menuSource: ""
+    property int minWidth: Style.space(220)
+    property real targetWidth: minWidth
+
+    visible: opened
+    width: opened ? Math.max(minWidth, targetWidth) : 0
+    height: opened ? plate.implicitHeight : 0
+    opacity: opened ? 1 : 0
+
+    HoverHandler {
+      enabled: drop.opened
+      onHoveredChanged: root.setMenuHot(drop.edge, hovered)
+      Component.onDestruction: root.setMenuHot(drop.edge, false)
+    }
+
+    Rectangle {
+      anchors.fill: plate
+      anchors.margins: -2
+      color: "transparent"
+      border.width: 2
+      border.color: "#FF6A00"
+      opacity: 0.45
+    }
+
+    BorderSurface {
+      id: plate
+      width: parent.width
+      implicitHeight: menuLoader.item ? menuLoader.item.implicitHeight + Style.space(16) : Style.space(48)
+      height: implicitHeight
+      radius: root.islandRadius
+      color: root.background
+      borderSpec: Border.flat("#FF6A00", 2)
+
+      Loader {
+        id: menuLoader
+        anchors.fill: parent
+        anchors.margins: Style.space(10)
+        active: drop.menuSource !== ""
+        source: drop.menuSource
+        onLoaded: {
+          if (!item) return
+          item.host = root
+          item.opened = Qt.binding(function() { return drop.opened })
+        }
+      }
+    }
   }
 
   component MagiIsland: Item {
     id: island
     property string tag: ""
     property string edge: ""
-    property string menuSource: ""
-    property bool expanded: false
-    property int menuMinWidth: Style.space(220)
     default property alias extra: chipRow.data
 
     readonly property real headerWidth: tagLabel.implicitWidth + chipRow.implicitWidth + root.islandPadX * 2 + (tagLabel.visible ? Style.space(8) : 0)
-    readonly property real menuHeight: menuLoader.item ? menuLoader.item.implicitHeight + Style.space(12) : 0
 
-    implicitWidth: Math.max(root.barSize, headerWidth, expanded ? menuMinWidth : 0)
-    implicitHeight: root.barSize + (expanded ? menuHeight : 0)
+    implicitWidth: Math.max(root.barSize, headerWidth)
+    implicitHeight: root.barSize
     width: implicitWidth
     height: implicitHeight
 
-    Behavior on implicitWidth { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
-    Behavior on implicitHeight { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
-
     HoverHandler {
-      onHoveredChanged: if (island.edge) root.bump(island.edge, hovered)
+      onHoveredChanged: root.setIslandHot(island.edge, hovered)
+      Component.onDestruction: root.setIslandHot(island.edge, false)
     }
 
     Rectangle {
@@ -503,69 +611,37 @@ Item {
       clip: true
 
       HazardStripe {
-        id: stripe
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: 11
       }
 
-      Column {
-        anchors.top: stripe.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: root.islandPadX
-        anchors.rightMargin: root.islandPadX
-        anchors.bottomMargin: Style.space(8)
+      Row {
+        id: headerRow
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.horizontalCenter: parent.horizontalCenter
         spacing: Style.space(8)
+        height: Style.bar.sizeHorizontal
 
-        Row {
-          id: headerRow
-          width: parent.width
-          height: Math.max(Style.bar.sizeHorizontal, chipRow.implicitHeight)
-          spacing: Style.space(8)
-
-          Text {
-            id: tagLabel
-            visible: island.tag !== ""
-            text: island.tag
-            color: Color.accent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            font.letterSpacing: 2.4
-            font.bold: true
-            font.capitalization: Font.AllUppercase
-            anchors.verticalCenter: parent.verticalCenter
-          }
-
-          Row {
-            id: chipRow
-            spacing: Style.space(4)
-            height: parent.height
-            anchors.verticalCenter: parent.verticalCenter
-          }
+        Text {
+          id: tagLabel
+          visible: island.tag !== ""
+          text: island.tag
+          color: Color.accent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.letterSpacing: 2.4
+          font.bold: true
+          font.capitalization: Font.AllUppercase
+          anchors.verticalCenter: parent.verticalCenter
         }
 
-        Item {
-          width: parent.width
-          height: island.expanded ? (menuLoader.item ? menuLoader.item.implicitHeight : 0) : 0
-          clip: true
-          Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-
-          Loader {
-            id: menuLoader
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            active: island.menuSource !== ""
-            source: island.menuSource
-            onLoaded: {
-              if (!item) return
-              item.host = root
-              item.opened = Qt.binding(function() { return island.expanded })
-            }
-          }
+        Row {
+          id: chipRow
+          spacing: Style.space(4)
+          height: parent.height
+          anchors.verticalCenter: parent.verticalCenter
         }
       }
     }
