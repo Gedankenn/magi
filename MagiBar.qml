@@ -347,12 +347,12 @@ Item {
 
     readonly property int dropTop: root.sideGap + root.barSize - 2
     readonly property int screenW: screen ? Math.round(screen.width) : 1920
-    readonly property int sessionW: Style.space(240)
-    readonly property int sessionH: Style.space(188)
-    readonly property int dashW: Style.space(640)
-    readonly property int dashH: Style.space(268)
-    readonly property int utilW: Style.space(260)
-    readonly property int utilH: Style.space(228)
+    readonly property int sessionW: Style.space(300)
+    readonly property int sessionH: Style.space(268)
+    readonly property int dashW: Math.min(screenW - Style.space(32), Style.space(1280))
+    readonly property int dashH: Style.space(468)
+    readonly property int utilW: Style.space(320)
+    readonly property int utilH: Style.space(312)
 
     function clampX(x, w) {
       return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
@@ -459,6 +459,8 @@ Item {
       opened: root.sessionOpen
       menuSource: "SessionDrawer.qml"
       namespaceName: "magi-session"
+      heading: "NERV  //  SESSION"
+      kicker: "CORE-00"
       fixedWidth: seat.sessionW
       fixedHeight: seat.sessionH
       posX: seat.sessionX
@@ -470,6 +472,8 @@ Item {
       opened: root.dashOpen
       menuSource: "Dashboard.qml"
       namespaceName: "magi-dash"
+      heading: "MAGI  //  GEOFRONT"
+      kicker: "TRINITY"
       fixedWidth: seat.dashW
       fixedHeight: seat.dashH
       posX: seat.dashX
@@ -481,6 +485,8 @@ Item {
       opened: root.utilOpen
       menuSource: "UtilitiesDrawer.qml"
       namespaceName: "magi-util"
+      heading: "SYS  //  STATUS"
+      kicker: "CASPER"
       fixedWidth: seat.utilW
       fixedHeight: seat.utilH
       posX: seat.utilX
@@ -493,6 +499,8 @@ Item {
     property bool opened: false
     property string menuSource: ""
     property string namespaceName: "magi-drop"
+    property string heading: ""
+    property string kicker: ""
     property int fixedWidth: 240
     property int fixedHeight: 200
     property int posX: 0
@@ -531,19 +539,80 @@ Item {
       BorderSurface {
         id: plate
         anchors.fill: parent
-        radius: root.islandRadius
-        color: root.background
+        radius: 0
+        color: "#0c0a0d"
         borderSpec: Border.flat("#FF6A00", 2)
 
-        Loader {
+        Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
+        Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
+        Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.right: parent.right; anchors.top: parent.top }
+        Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.right: parent.right; anchors.top: parent.top }
+        Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.left: parent.left; anchors.bottom: parent.bottom }
+        Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.left: parent.left; anchors.bottom: parent.bottom }
+        Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.right: parent.right; anchors.bottom: parent.bottom }
+        Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.right: parent.right; anchors.bottom: parent.bottom }
+
+        Column {
           anchors.fill: parent
-          anchors.margins: Style.space(10)
-          active: dropWin.menuSource !== ""
-          source: dropWin.menuSource
-          onLoaded: {
-            if (!item) return
-            item.host = root
-            item.opened = Qt.binding(function() { return dropWin.opened })
+          spacing: 0
+
+          HazardStripe {
+            width: parent.width
+            height: 14
+          }
+
+          Rectangle {
+            width: parent.width
+            height: 2
+            color: "#FF6A00"
+          }
+
+          Item {
+            width: parent.width
+            height: 38
+
+            Text {
+              anchors.left: parent.left
+              anchors.leftMargin: 16
+              anchors.verticalCenter: parent.verticalCenter
+              text: dropWin.heading
+              color: "#FF6A00"
+              font.family: root.fontFamily
+              font.pixelSize: 15
+              font.letterSpacing: 3
+              font.bold: true
+              font.capitalization: Font.AllUppercase
+            }
+
+            Text {
+              anchors.right: parent.right
+              anchors.rightMargin: 16
+              anchors.verticalCenter: parent.verticalCenter
+              text: dropWin.kicker
+              color: "#F4F0E6"
+              font.family: root.fontFamily
+              font.pixelSize: 13
+              font.letterSpacing: 2.4
+              font.bold: true
+            }
+          }
+
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: Qt.rgba(1, 0.42, 0, 0.35)
+          }
+
+          Loader {
+            width: parent.width
+            height: parent.height - 55
+            active: dropWin.menuSource !== ""
+            source: dropWin.menuSource
+            onLoaded: {
+              if (!item) return
+              item.host = root
+              item.opened = Qt.binding(function() { return dropWin.opened })
+            }
           }
         }
       }

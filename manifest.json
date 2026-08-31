@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.gedankenn.magi",
   "name": "MAGI",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "author": "Gedankenn",
   "license": "MIT",
   "description": "Floating MAGI bar for Omarchy. Always on. Hover an island to expand it into the MAGI, NERV, or SYS menu.",

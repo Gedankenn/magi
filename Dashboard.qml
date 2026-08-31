@@ -11,9 +11,11 @@ Item {
   property var host: null
   property bool opened: false
 
-  readonly property color background: Color.menu.background
-  readonly property color foreground: Color.menu.text
-  readonly property color accent: Color.accent
+  readonly property color paper: "#F4F0E6"
+  readonly property color muted: "#8a7a6e"
+  readonly property color accent: "#FF6A00"
+  readonly property color blood: "#C41E3A"
+  readonly property color acid: "#A8FF3E"
   readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
 
   property string weatherEmoji: ""
@@ -34,13 +36,11 @@ Item {
   readonly property string trackArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
   readonly property bool playing: !!(activePlayer && activePlayer.isPlaying)
 
-  implicitWidth: col.implicitWidth
-  implicitHeight: col.implicitHeight
-  width: parent ? parent.width : implicitWidth
-  height: implicitHeight
+  width: parent ? parent.width : 1280
+  height: parent ? parent.height : 400
   opacity: opened ? 1 : 0
   visible: opacity > 0.02
-  Behavior on opacity { NumberAnimation { duration: 180 } }
+  Behavior on opacity { NumberAnimation { duration: 160 } }
 
   function pickPlayer() {
     var list = players || []
@@ -104,9 +104,9 @@ Item {
   }
 
   function meterColor(value) {
-    if (value >= 0.85) return Color.urgent
+    if (value >= 0.85) return blood
     if (value >= 0.6) return accent
-    return "#A8FF3E"
+    return acid
   }
 
   function pct(value) {
@@ -176,188 +176,220 @@ Item {
 
   component MagiPane: Rectangle {
     id: pane
+    property string core: ""
     property string title: ""
     property string subtitle: ""
     default property alias extra: body.data
-    color: Qt.rgba(1, 1, 1, 0.03)
-    border.color: Qt.rgba(1, 1, 1, 0.08)
+    color: "#141014"
+    border.color: Qt.rgba(1, 0.42, 0, 0.28)
     border.width: 1
-    radius: 0
+
+    Rectangle {
+      width: 4
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      color: root.accent
+    }
 
     Column {
       anchors.fill: parent
-      anchors.margins: Style.space(10)
-      spacing: Style.space(8)
+      anchors.leftMargin: 18
+      anchors.rightMargin: 16
+      anchors.topMargin: 14
+      anchors.bottomMargin: 14
+      spacing: 10
 
       Row {
-        spacing: Style.space(8)
+        spacing: 10
+        width: parent.width
         Text {
-          text: pane.title
+          text: pane.core
           color: root.accent
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1.6
+          font.pixelSize: 12
+          font.letterSpacing: 2
           font.bold: true
+          anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+          text: pane.title
+          color: root.paper
+          font.family: root.fontFamily
+          font.pixelSize: 18
+          font.letterSpacing: 2.2
+          font.bold: true
+          font.capitalization: Font.AllUppercase
+          anchors.verticalCenter: parent.verticalCenter
         }
         Text {
           text: pane.subtitle
-          color: Qt.darker(root.foreground, 1.7)
+          color: root.muted
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: 1.2
+          font.pixelSize: 13
+          font.letterSpacing: 1.6
           anchors.verticalCenter: parent.verticalCenter
         }
       }
 
+      Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 0.42, 0, 0.22) }
+
       Item {
         id: body
         width: parent.width
-        height: parent.height - Style.space(22)
+        height: parent.height - 42
       }
     }
   }
 
-  component MeterRow: Row {
+  component MeterRow: Column {
     property string label: ""
     property real value: 0
-    width: parent ? parent.width : 160
-    spacing: Style.space(8)
+    width: parent ? parent.width : 200
+    spacing: 6
 
-    Text {
-      width: Style.space(32)
-      text: label
-      color: Qt.darker(root.foreground, 1.4)
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      font.letterSpacing: 1
-      anchors.verticalCenter: parent.verticalCenter
+    Row {
+      width: parent.width
+      Text {
+        text: label
+        color: root.muted
+        font.family: root.fontFamily
+        font.pixelSize: 14
+        font.letterSpacing: 2
+        font.bold: true
+      }
+      Text {
+        width: parent.width - 60
+        text: root.pct(value)
+        color: root.paper
+        font.family: root.fontFamily
+        font.pixelSize: 16
+        font.bold: true
+        horizontalAlignment: Text.AlignRight
+      }
     }
     Rectangle {
-      width: Math.max(40, parent.width - Style.space(78))
-      height: 7
-      radius: 0
-      color: Qt.rgba(1, 1, 1, 0.08)
-      anchors.verticalCenter: parent.verticalCenter
+      width: parent.width
+      height: 12
+      color: "#2a1510"
       Rectangle {
-        width: Math.max(2, parent.width * value)
+        width: Math.max(4, parent.width * value)
         height: parent.height
         color: root.meterColor(value)
       }
     }
-    Text {
-      width: Style.space(36)
-      text: root.pct(value)
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      horizontalAlignment: Text.AlignRight
-      anchors.verticalCenter: parent.verticalCenter
-    }
   }
 
   Column {
-    id: col
-    width: root.width
-    spacing: Style.space(10)
+    anchors.fill: parent
+    anchors.margins: 18
+    spacing: 14
 
     Item {
       width: parent.width
-      height: headerCol.height
+      height: 52
 
       Column {
-        id: headerCol
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 2
         Text {
-          text: "MAGI  //  GEOFRONT"
-          color: root.accent
+          text: root.host && root.host.pinned ? "PINNED  ·  ESC RELEASES" : "SYNCHRONIZED  ·  THE FATE OF MANKIND"
+          color: root.muted
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 2.4
-          font.bold: true
-          font.capitalization: Font.AllUppercase
+          font.pixelSize: 13
+          font.letterSpacing: 1.8
         }
         Text {
-          text: root.host && root.host.pinned ? "PINNED  ·  ESC TO RELEASE" : "THE FATE OF MANKIND"
-          color: Qt.darker(root.foreground, 1.6)
+          text: (root.weatherPlace || "AWAITING MAGI FEED").toUpperCase()
+          color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: 15
           font.letterSpacing: 1.4
         }
       }
 
       Column {
         anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         Text {
           anchors.right: parent.right
           text: Qt.formatTime(clock.date, "HH:mm:ss")
-          color: root.foreground
+          color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: Style.font.display
+          font.pixelSize: 36
           font.bold: true
         }
         Text {
           anchors.right: parent.right
           text: Qt.formatDate(clock.date, "dddd d MMMM yyyy").toUpperCase()
-          color: Qt.darker(root.foreground, 1.45)
+          color: root.muted
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1
+          font.pixelSize: 13
+          font.letterSpacing: 1.6
         }
       }
     }
 
     Row {
       width: parent.width
-      spacing: Style.space(12)
-      height: Style.space(168)
+      spacing: 14
+      height: parent.height - 80
 
       MagiPane {
-        width: (parent.width - Style.space(24)) / 3
+        width: (parent.width - 28) / 3
         height: parent.height
+        core: "01"
         title: "BALTHASAR"
         subtitle: "WEATHER"
         Column {
           width: parent.width
-          spacing: Style.space(6)
+          spacing: 10
           Row {
-            spacing: Style.space(8)
-            Text { text: root.weatherEmoji || "…"; font.pixelSize: Style.font.display; color: root.foreground }
+            spacing: 12
+            Text {
+              text: root.weatherEmoji || "·"
+              font.pixelSize: 42
+              color: root.paper
+              anchors.verticalCenter: parent.verticalCenter
+            }
             Text {
               text: root.weatherTemp || "—"
-              color: root.foreground
+              color: root.paper
               font.family: root.fontFamily
-              font.pixelSize: Style.font.display
+              font.pixelSize: 42
               font.bold: true
               anchors.verticalCenter: parent.verticalCenter
             }
           }
           Text {
             width: parent.width
-            text: (root.weatherCond || "AWAITING MAGI FEED").toUpperCase()
-            color: root.foreground
+            text: (root.weatherCond || "NO SIGNAL").toUpperCase()
+            color: root.paper
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: 18
             wrapMode: Text.Wrap
           }
           Text {
             width: parent.width
-            text: [root.weatherPlace, root.weatherHum, root.weatherWind].filter(function(s) { return !!s }).join("  ·  ")
-            color: Qt.darker(root.foreground, 1.5)
+            text: [root.weatherHum ? ("HUM " + root.weatherHum) : "", root.weatherWind ? ("WIND " + root.weatherWind) : ""].filter(function(s) { return !!s }).join("    ")
+            color: root.muted
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: 15
             wrapMode: Text.Wrap
           }
         }
       }
 
       MagiPane {
-        width: (parent.width - Style.space(24)) / 3
+        width: (parent.width - 28) / 3
         height: parent.height
+        core: "02"
         title: "MELCHIOR"
         subtitle: "SYSTEM"
         Column {
           width: parent.width
-          spacing: Style.space(12)
+          spacing: 18
           MeterRow { label: "CPU"; value: root.cpuUsage }
           MeterRow { label: "MEM"; value: root.memUsage }
           MeterRow { label: "DSK"; value: root.diskUsage }
@@ -365,50 +397,55 @@ Item {
       }
 
       MagiPane {
-        width: (parent.width - Style.space(24)) / 3
+        width: (parent.width - 28) / 3
         height: parent.height
+        core: "03"
         title: "CASPER"
         subtitle: "MEDIA"
         Column {
           width: parent.width
-          spacing: Style.space(8)
+          spacing: 12
           Text {
             width: parent.width
             text: root.trackTitle || "NO SIGNAL"
-            color: root.foreground
+            color: root.paper
             font.family: root.fontFamily
-            font.pixelSize: Style.font.title
+            font.pixelSize: 22
             font.bold: true
             elide: Text.ElideRight
+            wrapMode: Text.NoWrap
           }
           Text {
             width: parent.width
             text: root.trackArtist || "Casper is idle"
-            color: Qt.darker(root.foreground, 1.45)
+            color: root.muted
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: 16
             elide: Text.ElideRight
           }
           Row {
-            spacing: Style.space(10)
+            spacing: 10
             Repeater {
               model: [
-                { glyph: "󰒮", action: "prev" },
-                { glyph: root.playing ? "󰏤" : "󰐊", action: "play" },
-                { glyph: "󰒭", action: "next" }
+                { label: "PREV", action: "prev" },
+                { label: root.playing ? "PAUSE" : "PLAY", action: "play" },
+                { label: "NEXT", action: "next" }
               ]
               Rectangle {
                 required property var modelData
-                width: Style.space(28)
-                height: Style.space(28)
-                radius: 0
-                color: hit.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : Qt.rgba(1, 1, 1, 0.05)
+                width: 86
+                height: 36
+                color: hit.containsMouse ? Qt.rgba(1, 0.42, 0, 0.28) : "#1a1210"
+                border.width: 1
+                border.color: hit.containsMouse ? root.accent : Qt.rgba(1, 0.42, 0, 0.35)
                 Text {
                   anchors.centerIn: parent
-                  text: modelData.glyph
-                  color: root.foreground
+                  text: modelData.label
+                  color: root.paper
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.title
+                  font.pixelSize: 13
+                  font.letterSpacing: 1.6
+                  font.bold: true
                 }
                 MouseArea {
                   id: hit

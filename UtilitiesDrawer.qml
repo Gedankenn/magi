@@ -13,14 +13,15 @@ Item {
   property real memUsage: 0
   property var prevCpu: null
 
-  readonly property color foreground: Color.menu.text
-  readonly property color accent: Color.accent
+  readonly property color paper: "#F4F0E6"
+  readonly property color muted: "#8a7a6e"
+  readonly property color accent: "#FF6A00"
+  readonly property color acid: "#A8FF3E"
+  readonly property color blood: "#C41E3A"
   readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
 
-  implicitWidth: col.implicitWidth
-  implicitHeight: col.implicitHeight
-  width: parent ? parent.width : implicitWidth
-  height: implicitHeight
+  width: parent ? parent.width : 320
+  height: parent ? parent.height : 300
   opacity: opened ? 1 : 0
   visible: opacity > 0.02
   Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -81,50 +82,51 @@ Item {
   }
 
   Column {
-    id: col
-    width: root.width
-    spacing: Style.space(8)
+    anchors.fill: parent
+    anchors.margins: 18
+    spacing: 10
 
-    Text {
-      text: "SYS  //  STATUS"
-      color: root.accent
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
-      font.letterSpacing: 1.6
-      font.bold: true
-    }
-
-    Text {
-      text: "CPU  " + root.pct(root.cpuUsage)
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+    Row {
+      width: parent.width
+      Text {
+        text: "CPU  " + root.pct(root.cpuUsage)
+        color: root.paper
+        font.family: root.fontFamily
+        font.pixelSize: 16
+        font.bold: true
+        font.letterSpacing: 1.4
+      }
     }
     Rectangle {
       width: parent.width
-      height: 7
-      color: Qt.rgba(1, 1, 1, 0.08)
+      height: 12
+      color: "#2a1510"
       Rectangle {
-        width: Math.max(2, parent.width * root.cpuUsage)
+        width: Math.max(4, parent.width * root.cpuUsage)
         height: parent.height
-        color: root.cpuUsage >= 0.85 ? Color.urgent : root.accent
+        color: root.cpuUsage >= 0.85 ? root.blood : root.accent
       }
     }
 
-    Text {
-      text: "MEM  " + root.pct(root.memUsage)
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+    Row {
+      width: parent.width
+      Text {
+        text: "MEM  " + root.pct(root.memUsage)
+        color: root.paper
+        font.family: root.fontFamily
+        font.pixelSize: 16
+        font.bold: true
+        font.letterSpacing: 1.4
+      }
     }
     Rectangle {
       width: parent.width
-      height: 7
-      color: Qt.rgba(1, 1, 1, 0.08)
+      height: 12
+      color: "#2a1510"
       Rectangle {
-        width: Math.max(2, parent.width * root.memUsage)
+        width: Math.max(4, parent.width * root.memUsage)
         height: parent.height
-        color: root.memUsage >= 0.85 ? Color.urgent : "#A8FF3E"
+        color: root.memUsage >= 0.85 ? root.blood : root.acid
       }
     }
 
@@ -138,18 +140,18 @@ Item {
       Rectangle {
         required property var modelData
         width: parent.width
-        height: Style.space(30)
-        radius: 0
-        color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : Qt.rgba(1, 1, 1, 0.04)
-        border.width: cell.containsMouse ? 1 : 0
-        border.color: "#FF6A00"
+        height: 40
+        color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : "#141014"
+        border.width: 1
+        border.color: cell.containsMouse ? root.accent : Qt.rgba(1, 0.42, 0, 0.28)
         Text {
           anchors.centerIn: parent
           text: modelData.label
-          color: root.foreground
+          color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1.4
+          font.pixelSize: 14
+          font.letterSpacing: 1.8
+          font.bold: true
         }
         MouseArea {
           id: cell

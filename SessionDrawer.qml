@@ -9,14 +9,13 @@ Item {
   property var host: null
   property bool opened: false
 
-  readonly property color foreground: Color.menu.text
-  readonly property color accent: Color.accent
+  readonly property color paper: "#F4F0E6"
+  readonly property color accent: "#FF6A00"
+  readonly property color blood: "#C41E3A"
   readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
 
-  implicitWidth: col.implicitWidth
-  implicitHeight: col.implicitHeight
-  width: parent ? parent.width : implicitWidth
-  height: implicitHeight
+  width: parent ? parent.width : 300
+  height: parent ? parent.height : 240
   opacity: opened ? 1 : 0
   visible: opacity > 0.02
   Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -28,41 +27,41 @@ Item {
   }
 
   Column {
-    id: col
-    width: root.width
-    spacing: Style.space(8)
+    anchors.fill: parent
+    anchors.margins: 18
+    spacing: 10
 
     Text {
-      text: "NERV  //  SESSION"
+      text: "COMMAND AUTHORITY"
       color: root.accent
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
-      font.letterSpacing: 1.6
+      font.pixelSize: 13
+      font.letterSpacing: 2
       font.bold: true
     }
 
     Repeater {
       model: [
-        { label: "LOCK", cmd: ["omarchy", "system", "lock"] },
-        { label: "LOGOUT", cmd: ["omarchy", "system", "logout"] },
-        { label: "REBOOT", cmd: ["omarchy", "system", "reboot"] },
-        { label: "SHUTDOWN", cmd: ["omarchy", "system", "shutdown"] }
+        { label: "LOCK", cmd: ["omarchy", "system", "lock"], danger: false },
+        { label: "LOGOUT", cmd: ["omarchy", "system", "logout"], danger: false },
+        { label: "REBOOT", cmd: ["omarchy", "system", "reboot"], danger: true },
+        { label: "SHUTDOWN", cmd: ["omarchy", "system", "shutdown"], danger: true }
       ]
       Rectangle {
         required property var modelData
         width: parent.width
-        height: Style.space(30)
-        radius: 0
-        color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : Qt.rgba(1, 1, 1, 0.04)
-        border.width: cell.containsMouse ? 1 : 0
-        border.color: "#FF6A00"
+        height: 44
+        color: cell.containsMouse ? (modelData.danger ? Qt.rgba(0.77, 0.12, 0.23, 0.35) : Qt.rgba(1, 0.42, 0, 0.22)) : "#141014"
+        border.width: 1
+        border.color: cell.containsMouse ? (modelData.danger ? root.blood : root.accent) : Qt.rgba(1, 0.42, 0, 0.28)
         Text {
           anchors.centerIn: parent
           text: modelData.label
-          color: root.foreground
+          color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1.4
+          font.pixelSize: 16
+          font.letterSpacing: 2.2
+          font.bold: true
         }
         MouseArea {
           id: cell
