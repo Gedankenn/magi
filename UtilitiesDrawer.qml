@@ -136,7 +136,7 @@ Item {
         Text {
           text: "SYS  //  STATUS"
           color: root.accent
-          font.family: Style.font.family
+          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
           font.pixelSize: Style.font.caption
           font.letterSpacing: 1.6
           font.bold: true
@@ -145,7 +145,7 @@ Item {
         Text {
           text: "CPU  " + root.pct(root.cpuUsage)
           color: root.foreground
-          font.family: Style.font.family
+          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
           font.pixelSize: Style.font.body
         }
         Rectangle {
@@ -164,7 +164,7 @@ Item {
         Text {
           text: "MEM  " + root.pct(root.memUsage)
           color: root.foreground
-          font.family: Style.font.family
+          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
           font.pixelSize: Style.font.body
         }
         Rectangle {
@@ -196,7 +196,7 @@ Item {
               anchors.centerIn: parent
               text: modelData.label
               color: root.foreground
-              font.family: Style.font.family
+              font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
               font.pixelSize: Style.font.bodySmall
               font.letterSpacing: 1.4
             }

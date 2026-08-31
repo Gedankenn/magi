@@ -33,11 +33,11 @@ Item {
   property string tooltipText: ""
   property bool tooltipShown: false
 
-  property color foreground: Color.bar.text
+  property color foreground: "#F4F0E6"
   property color barForeground: foreground
   property color background: Color.menu.background
   property color urgent: Color.bar.active
-  property string fontFamily: Style.font.family
+  property string fontFamily: "Nimbus Sans Narrow"
 
   property bool pinned: false
   property bool dashOpen: false
@@ -538,9 +538,10 @@ Item {
           text: island.tag
           color: Color.accent
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: 1.6
+          font.pixelSize: Style.font.bodySmall
+          font.letterSpacing: 2.4
           font.bold: true
+          font.capitalization: Font.AllUppercase
           anchors.verticalCenter: parent.verticalCenter
         }
 

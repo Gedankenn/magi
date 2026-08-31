@@ -18,7 +18,7 @@ Item {
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
   readonly property var borderSpec: Border.flat("#FF6A00", 2)
-  readonly property string fontFamily: Style.font.family
+  readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
   readonly property int cardWidth: {
     var island = host && host.centerIslandWidth ? host.centerIslandWidth : 0
     return Math.max(Math.round(island), Style.space(560))
@@ -325,8 +325,9 @@ Item {
               color: root.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.bodySmall
-              font.letterSpacing: 2
+              font.letterSpacing: 2.4
               font.bold: true
+              font.capitalization: Font.AllUppercase
             }
             Text {
               text: root.host && root.host.pinned ? "PINNED  ·  ESC TO RELEASE" : "THE FATE OF MANKIND"
@@ -385,7 +386,7 @@ Item {
               }
               Text {
                 width: parent.width
-                text: root.weatherCond || "Awaiting MAGI feed…"
+                text: (root.weatherCond || "AWAITING MAGI FEED").toUpperCase()
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body

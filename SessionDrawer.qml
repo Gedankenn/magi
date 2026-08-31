@@ -82,7 +82,7 @@ Item {
         Text {
           text: "NERV  //  SESSION"
           color: root.accent
-          font.family: Style.font.family
+          font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
           font.pixelSize: Style.font.caption
           font.letterSpacing: 1.6
           font.bold: true
@@ -105,7 +105,7 @@ Item {
               anchors.centerIn: parent
               text: modelData.label
               color: root.foreground
-              font.family: Style.font.family
+              font.family: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
               font.pixelSize: Style.font.bodySmall
               font.letterSpacing: 1.4
             }
