@@ -217,10 +217,7 @@ Item {
   }
 
   function showTooltip(target, text) {
-    if (anyMenuOpen) return
-    tooltipTarget = target
-    tooltipText = String(text || "")
-    tooltipShown = tooltipText !== ""
+    // Layer-shell popups on hover crash Hyprland (zwlr protocol error).
   }
 
   function hideTooltip(target) {
@@ -342,8 +339,25 @@ Item {
     id: seat
     required property var screen
 
-    readonly property int dropY: root.sideGap + root.barSize - 2
-    readonly property int dropPad: Style.space(10)
+    readonly property int dropTop: root.sideGap + root.barSize - 2
+    readonly property int screenW: screen ? Math.round(screen.width) : 1920
+    readonly property int sessionW: Style.space(240)
+    readonly property int sessionH: Style.space(188)
+    readonly property int dashW: Style.space(640)
+    readonly property int dashH: Style.space(268)
+    readonly property int utilW: Style.space(260)
+    readonly property int utilH: Style.space(228)
+
+    function clampX(x, w) {
+      return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
+    }
+
+    readonly property int sessionX: seat.clampX(root.sideGap + root.leftIslandX, sessionW)
+    readonly property int dashX: {
+      var cx = root.sideGap + root.centerIslandX + root.centerIslandWidth / 2
+      return seat.clampX(cx - dashW / 2, dashW)
+    }
+    readonly property int utilX: seat.clampX(root.sideGap + root.rightIslandX + root.rightIslandWidth - utilW, utilW)
 
     PanelWindow {
       id: barWindow
@@ -353,7 +367,7 @@ Item {
       implicitHeight: root.barSize
       color: "transparent"
       WlrLayershell.namespace: "magi-bar"
-      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.layer: WlrLayer.Top
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
       anchors {
@@ -383,6 +397,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         onXChanged: root.leftIslandX = x
         onWidthChanged: root.leftIslandWidth = width
+        Component.onCompleted: { root.leftIslandX = x; root.leftIslandWidth = width }
         Repeater {
           model: root.layoutEntries("left")
           ModuleSlot {
@@ -401,6 +416,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         onXChanged: root.centerIslandX = x
         onWidthChanged: root.centerIslandWidth = width
+        Component.onCompleted: { root.centerIslandX = x; root.centerIslandWidth = width }
         Repeater {
           model: root.layoutEntries("center")
           ModuleSlot {
@@ -419,6 +435,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         onXChanged: root.rightIslandX = x
         onWidthChanged: root.rightIslandWidth = width
+        Component.onCompleted: { root.rightIslandX = x; root.rightIslandWidth = width }
         Repeater {
           model: root.layoutEntries("right")
           ModuleSlot {
@@ -428,146 +445,88 @@ Item {
           }
         }
       }
-
-      PopupWindow {
-        visible: root.tooltipShown && root.tooltipTarget !== null && root.tooltipText !== ""
-        color: "transparent"
-        implicitWidth: Math.ceil(tipBox.implicitWidth)
-        implicitHeight: Math.ceil(tipBox.implicitHeight)
-        anchor {
-          window: barWindow
-          item: root.tooltipTarget
-          edges: Edges.Bottom | Edges.Left
-          gravity: Edges.Bottom | Edges.Right
-        }
-        BorderSurface {
-          id: tipBox
-          color: Color.tooltip.background
-          borderSpec: Border.surfaceSpec("tooltip", "border", Color.tooltip.border, 1)
-          radius: Style.cornerRadius
-          padding: Style.space(6)
-          Text {
-            text: root.tooltipText
-            color: Color.tooltip.text
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
-        }
-      }
     }
 
-    PanelWindow {
-      id: dropWindow
+    MagiDropWindow {
       screen: seat.screen
-      visible: true
-      color: "transparent"
-      exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.namespace: "magi-drop"
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: root.pinned ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-      anchors { top: true; bottom: true; left: true; right: true }
-      mask: Region {
-        Region { item: sessionDrop }
-        Region { item: dashDrop }
-        Region { item: utilDrop }
-      }
+      edge: "left"
+      opened: root.sessionOpen
+      menuSource: "SessionDrawer.qml"
+      namespaceName: "magi-session"
+      fixedWidth: seat.sessionW
+      fixedHeight: seat.sessionH
+      posX: seat.sessionX
+    }
 
-      Item {
-        anchors.fill: parent
-        focus: root.pinned
-        Keys.onPressed: function(event) {
-          if (event.key === Qt.Key_Escape) {
-            root.toggleDash()
-            event.accepted = true
-          } else if (event.text === "r" || event.text === "R") {
-            root.dashSerial++
-            event.accepted = true
-          }
-        }
-      }
+    MagiDropWindow {
+      screen: seat.screen
+      edge: "top"
+      opened: root.dashOpen
+      menuSource: "Dashboard.qml"
+      namespaceName: "magi-dash"
+      fixedWidth: seat.dashW
+      fixedHeight: seat.dashH
+      posX: seat.dashX
+    }
 
-      MagiDrop {
-        id: sessionDrop
-        edge: "left"
-        opened: root.sessionOpen
-        menuSource: "SessionDrawer.qml"
-        minWidth: Style.space(228)
-        x: root.sideGap + root.leftIslandX
-        y: seat.dropY
-        targetWidth: root.leftIslandWidth
-      }
-
-      MagiDrop {
-        id: dashDrop
-        edge: "top"
-        opened: root.dashOpen
-        menuSource: "Dashboard.qml"
-        minWidth: Style.space(640)
-        x: root.sideGap + root.centerIslandX + root.centerIslandWidth / 2 - width / 2
-        y: seat.dropY
-        targetWidth: root.centerIslandWidth
-      }
-
-      MagiDrop {
-        id: utilDrop
-        edge: "right"
-        opened: root.utilOpen
-        menuSource: "UtilitiesDrawer.qml"
-        minWidth: Style.space(248)
-        x: root.sideGap + root.rightIslandX + root.rightIslandWidth - width
-        y: seat.dropY
-        targetWidth: root.rightIslandWidth
-      }
+    MagiDropWindow {
+      screen: seat.screen
+      edge: "right"
+      opened: root.utilOpen
+      menuSource: "UtilitiesDrawer.qml"
+      namespaceName: "magi-util"
+      fixedWidth: seat.utilW
+      fixedHeight: seat.utilH
+      posX: seat.utilX
     }
   }
 
-  component MagiDrop: Item {
-    id: drop
+  component MagiDropWindow: PanelWindow {
+    id: dropWin
     property string edge: ""
     property bool opened: false
     property string menuSource: ""
-    property int minWidth: Style.space(220)
-    property real targetWidth: minWidth
+    property string namespaceName: "magi-drop"
+    property int fixedWidth: 240
+    property int fixedHeight: 200
+    property int posX: 0
 
     visible: opened
-    width: opened ? Math.max(minWidth, targetWidth) : 0
-    height: opened ? plate.implicitHeight : 0
-    opacity: opened ? 1 : 0
-
-    HoverHandler {
-      enabled: drop.opened
-      onHoveredChanged: root.setMenuHot(drop.edge, hovered)
-      Component.onDestruction: root.setMenuHot(drop.edge, false)
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    implicitWidth: fixedWidth
+    implicitHeight: fixedHeight
+    WlrLayershell.namespace: namespaceName
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    anchors { top: true; left: true }
+    margins {
+      top: root.sideGap + root.barSize - 2
+      left: posX
     }
 
-    Rectangle {
-      anchors.fill: plate
-      anchors.margins: -2
-      color: "transparent"
-      border.width: 2
-      border.color: "#FF6A00"
-      opacity: 0.45
+    HoverHandler {
+      enabled: dropWin.opened
+      onHoveredChanged: root.setMenuHot(dropWin.edge, hovered)
+      Component.onDestruction: root.setMenuHot(dropWin.edge, false)
     }
 
     BorderSurface {
       id: plate
-      width: parent.width
-      implicitHeight: menuLoader.item ? menuLoader.item.implicitHeight + Style.space(16) : Style.space(48)
-      height: implicitHeight
+      anchors.fill: parent
       radius: root.islandRadius
       color: root.background
       borderSpec: Border.flat("#FF6A00", 2)
 
       Loader {
-        id: menuLoader
         anchors.fill: parent
         anchors.margins: Style.space(10)
-        active: drop.menuSource !== ""
-        source: drop.menuSource
+        active: dropWin.menuSource !== ""
+        source: dropWin.menuSource
         onLoaded: {
           if (!item) return
           item.host = root
-          item.opened = Qt.binding(function() { return drop.opened })
+          item.opened = Qt.binding(function() { return dropWin.opened })
         }
       }
     }
