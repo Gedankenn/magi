@@ -19,13 +19,17 @@ Item {
   readonly property color accent: Color.accent
   readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
   readonly property string fontFamily: Style.font.family
-  readonly property int cardWidth: Math.min(Style.space(980), Math.max(640, panel.width - Style.gapsOut * 2))
-  readonly property int cardHeight: Style.space(272)
-  readonly property real parkedY: -cardHeight - 24
-  readonly property real shownY: {
-    var barSize = (host && !host.barHidden) ? (host.barSize || Style.bar.sizeHorizontal) : 0
-    return 8 + barSize
+  readonly property int cardWidth: {
+    var island = host && host.centerIslandWidth ? host.centerIslandWidth : 0
+    return Math.max(Math.round(island), Style.space(560))
   }
+  readonly property int cardHeight: Style.space(248)
+  readonly property real shownY: {
+    var gap = host && host.sideGap ? host.sideGap : Style.gapsOut
+    var size = host && host.barSize ? host.barSize : Style.bar.sizeHorizontal
+    return gap + size + 2
+  }
+  readonly property real parkedY: shownY - 18
 
   property string weatherEmoji: ""
   property string weatherTemp: ""
@@ -264,6 +268,7 @@ Item {
     WlrLayershell.namespace: "magi-dashboard"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (root.opened && root.host && root.host.pinned) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    mask: Region { item: card }
 
     MouseArea {
       anchors.fill: parent
@@ -271,11 +276,21 @@ Item {
       onClicked: root.host.toggleDash()
     }
 
+    Rectangle {
+      anchors.fill: card
+      anchors.margins: -2
+      radius: (host && host.islandRadius ? host.islandRadius : 16) + 2
+      color: "transparent"
+      border.width: 1
+      border.color: root.accent
+      opacity: 0.28
+    }
+
     BorderSurface {
       id: card
       width: root.cardWidth
       height: root.cardHeight
-      radius: Math.max(6, Style.cornerRadius)
+      radius: host && host.islandRadius ? host.islandRadius : Math.max(8, Style.cornerRadius)
       anchors.horizontalCenter: parent.horizontalCenter
       y: root.opened ? root.shownY : root.parkedY
       color: root.background
@@ -293,27 +308,16 @@ Item {
         anchors.margins: Style.spacing.panelPadding
         spacing: Style.space(10)
 
-        Canvas {
+        Rectangle {
           width: parent.width
-          height: 7
-          onPaint: {
-            var ctx = getContext("2d")
-            var h = height
-            var w = 14
-            ctx.clearRect(0, 0, width, h)
-            for (var x = -h; x < width + h; x += w) {
-              ctx.fillStyle = (Math.floor((x + h) / w) % 2 === 0) ? String(root.accent) : "#0c0a0d"
-              ctx.beginPath()
-              ctx.moveTo(x, 0)
-              ctx.lineTo(x + 10, 0)
-              ctx.lineTo(x + 10 - h, h)
-              ctx.lineTo(x - h, h)
-              ctx.closePath()
-              ctx.fill()
-            }
+          height: 2
+          radius: 1
+          gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: "#FF6A00" }
+            GradientStop { position: 0.55; color: "#7B2FBE" }
+            GradientStop { position: 1; color: "#00E5FF" }
           }
-          Component.onCompleted: requestPaint()
-          onWidthChanged: requestPaint()
         }
 
         Item {

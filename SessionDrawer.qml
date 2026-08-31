@@ -15,10 +15,14 @@ Item {
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
-  readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
-  readonly property int cardWidth: Style.space(240)
-  readonly property real parkedX: -cardWidth - 20
-  readonly property real shownX: Style.gapsOut
+  readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, 1)
+  readonly property int cardWidth: Math.max(Math.round(host && host.leftIslandWidth ? host.leftIslandWidth : 0), Style.space(220))
+  readonly property real shownX: host && host.sideGap ? host.sideGap : Style.gapsOut
+  readonly property real shownY: {
+    var gap = host && host.sideGap ? host.sideGap : Style.gapsOut
+    var size = host && host.barSize ? host.barSize : Style.bar.sizeHorizontal
+    return gap + size + 2
+  }
 
   function run(args) {
     if (!args || !args.length) return
@@ -35,17 +39,30 @@ Item {
     WlrLayershell.namespace: "magi-session"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    mask: Region { item: card }
+
+    Rectangle {
+      anchors.fill: card
+      anchors.margins: -2
+      radius: (host && host.islandRadius ? host.islandRadius : 16) + 2
+      color: "transparent"
+      border.width: 1
+      border.color: root.accent
+      opacity: 0.28
+    }
 
     BorderSurface {
       id: card
       width: root.cardWidth
       height: col.implicitHeight + Style.spacing.panelPadding * 2
-      radius: Math.max(6, Style.cornerRadius)
-      x: root.opened ? root.shownX : root.parkedX
-      anchors.verticalCenter: parent.verticalCenter
+      radius: host && host.islandRadius ? host.islandRadius : Math.max(8, Style.cornerRadius)
+      x: root.shownX
+      y: root.opened ? root.shownY : root.shownY - 16
       color: root.background
       borderSpec: root.borderSpec
-      Behavior on x { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+      opacity: root.opened ? 1 : 0
+      Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+      Behavior on opacity { NumberAnimation { duration: 160 } }
 
       HoverHandler { onHoveredChanged: root.hovered = hovered }
 
@@ -57,20 +74,25 @@ Item {
         anchors.margins: Style.spacing.panelPadding
         spacing: Style.space(8)
 
+        Rectangle {
+          width: parent.width
+          height: 2
+          radius: 1
+          gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: "#FF6A00" }
+            GradientStop { position: 0.55; color: "#7B2FBE" }
+            GradientStop { position: 1; color: "#00E5FF" }
+          }
+        }
+
         Text {
           text: "NERV  //  SESSION"
           color: root.accent
           font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1.8
-          font.bold: true
-        }
-        Text {
-          text: "END OF DUTY"
-          color: Qt.darker(root.foreground, 1.6)
-          font.family: Style.font.family
           font.pixelSize: Style.font.caption
-          font.letterSpacing: 1.2
+          font.letterSpacing: 1.6
+          font.bold: true
         }
 
         Repeater {
@@ -83,7 +105,7 @@ Item {
           Rectangle {
             required property var modelData
             width: parent.width
-            height: Style.space(32)
+            height: Style.space(30)
             radius: 4
             color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.18) : Qt.rgba(1, 1, 1, 0.04)
             Text {
@@ -91,8 +113,8 @@ Item {
               text: modelData.label
               color: root.foreground
               font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              font.letterSpacing: 1.6
+              font.pixelSize: Style.font.bodySmall
+              font.letterSpacing: 1.4
             }
             MouseArea {
               id: cell

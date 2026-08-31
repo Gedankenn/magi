@@ -19,10 +19,14 @@ Item {
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.accent
-  readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
-  readonly property int cardWidth: Style.space(252)
-  readonly property real parkedX: (panel.width || 1920) + 20
-  readonly property real shownX: (panel.width || 1920) - cardWidth - Style.gapsOut
+  readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, 1)
+  readonly property int cardWidth: Math.max(Math.round(host && host.rightIslandWidth ? host.rightIslandWidth : 0), Style.space(240))
+  readonly property real shownY: {
+    var gap = host && host.sideGap ? host.sideGap : Style.gapsOut
+    var size = host && host.barSize ? host.barSize : Style.bar.sizeHorizontal
+    return gap + size + 2
+  }
+  readonly property real shownX: Math.max(0, (panel.width || 1920) - cardWidth - (host && host.sideGap ? host.sideGap : Style.gapsOut))
 
   function pct(value) { return Math.round((value || 0) * 100) + "%" }
 
@@ -89,17 +93,30 @@ Item {
     WlrLayershell.namespace: "magi-utilities"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    mask: Region { item: card }
+
+    Rectangle {
+      anchors.fill: card
+      anchors.margins: -2
+      radius: (host && host.islandRadius ? host.islandRadius : 16) + 2
+      color: "transparent"
+      border.width: 1
+      border.color: root.accent
+      opacity: 0.28
+    }
 
     BorderSurface {
       id: card
       width: root.cardWidth
       height: col.implicitHeight + Style.spacing.panelPadding * 2
-      radius: Math.max(6, Style.cornerRadius)
-      x: root.opened ? root.shownX : root.parkedX
-      anchors.verticalCenter: parent.verticalCenter
+      radius: host && host.islandRadius ? host.islandRadius : Math.max(8, Style.cornerRadius)
+      x: root.shownX
+      y: root.opened ? root.shownY : root.shownY - 16
       color: root.background
       borderSpec: root.borderSpec
-      Behavior on x { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+      opacity: root.opened ? 1 : 0
+      Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+      Behavior on opacity { NumberAnimation { duration: 160 } }
 
       HoverHandler { onHoveredChanged: root.hovered = hovered }
 
@@ -109,14 +126,26 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: Style.spacing.panelPadding
-        spacing: Style.space(10)
+        spacing: Style.space(8)
+
+        Rectangle {
+          width: parent.width
+          height: 2
+          radius: 1
+          gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: "#FF6A00" }
+            GradientStop { position: 0.55; color: "#7B2FBE" }
+            GradientStop { position: 1; color: "#00E5FF" }
+          }
+        }
 
         Text {
-          text: "CASPER  //  UTILITY"
+          text: "SYS  //  STATUS"
           color: root.accent
           font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1.8
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: 1.6
           font.bold: true
         }
 

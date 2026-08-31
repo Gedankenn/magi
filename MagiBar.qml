@@ -54,11 +54,14 @@ Item {
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
   readonly property int sensorSize: 4
-  readonly property int dashDelay: 280
+  readonly property int dashDelay: 160
   readonly property int hideDelay: 420
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(10)
   readonly property int islandRadius: Math.round((Style.bar.sizeHorizontal + Style.space(10)) / 2)
+  property real leftIslandWidth: 0
+  property real centerIslandWidth: 0
+  property real rightIslandWidth: 0
 
   function layoutEntries(region) {
     var serial = barConfigSerial
@@ -402,8 +405,11 @@ Item {
 
       MagiIsland {
         id: leftIsland
+        tag: "NERV"
+        edge: "left"
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
+        onWidthChanged: root.leftIslandWidth = width
         Repeater {
           model: root.layoutEntries("left")
           ModuleSlot {
@@ -416,8 +422,11 @@ Item {
 
       MagiIsland {
         id: centerIsland
+        tag: "MAGI"
+        edge: "top"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
+        onWidthChanged: root.centerIslandWidth = width
         Repeater {
           model: root.layoutEntries("center")
           ModuleSlot {
@@ -430,8 +439,11 @@ Item {
 
       MagiIsland {
         id: rightIsland
+        tag: "SYS"
+        edge: "right"
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        onWidthChanged: root.rightIslandWidth = width
         Repeater {
           model: root.layoutEntries("right")
           ModuleSlot {
@@ -472,6 +484,8 @@ Item {
 
   component MagiIsland: Item {
     id: island
+    property string tag: ""
+    property string edge: ""
     default property alias extra: chipRow.data
 
     implicitWidth: plate.implicitWidth
@@ -479,6 +493,10 @@ Item {
     width: implicitWidth
     height: implicitHeight
     visible: chipRow.children.length > 0
+
+    HoverHandler {
+      onHoveredChanged: if (island.edge) root.bump(island.edge, hovered)
+    }
 
     Rectangle {
       anchors.fill: plate
@@ -492,7 +510,7 @@ Item {
 
     BorderSurface {
       id: plate
-      implicitWidth: Math.max(root.barSize, chipRow.implicitWidth + root.islandPadX * 2)
+      implicitWidth: Math.max(root.barSize, tagLabel.implicitWidth + chipRow.implicitWidth + root.islandPadX * 2 + (tagLabel.visible ? Style.space(8) : 0))
       implicitHeight: root.barSize
       width: implicitWidth
       height: implicitHeight
@@ -519,11 +537,28 @@ Item {
       }
 
       Row {
-        id: chipRow
-        spacing: Style.space(4)
         anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
+        spacing: Style.space(8)
         height: Style.bar.sizeHorizontal
+
+        Text {
+          id: tagLabel
+          visible: island.tag !== ""
+          text: island.tag
+          color: Color.accent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: 1.6
+          font.bold: true
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Row {
+          id: chipRow
+          spacing: Style.space(4)
+          height: parent.height
+        }
       }
     }
   }

@@ -26,9 +26,9 @@ That last command makes MAGI the active bar (`bar.id` in `shell.json`). `omarchy
 
 | Edge | What appears |
 | --- | --- |
-| Top (above the pill) | MAGI dashboard (weather, CPU/RAM/disk, media) |
-| Left | NERV session card: lock, logout, reboot, shutdown |
-| Right | Casper utilities: live CPU/RAM, night light, stay-awake, DND |
+| Center island **MAGI** (or the gap above it) | The island extends into the MAGI dashboard |
+| Left island **NERV** | Extends into session: lock, logout, reboot, shutdown |
+| Right island **SYS** | Extends into status: CPU/RAM, night light, stay-awake, DND |
 
 Move the pointer off a drawer and it slides away. The bar stays put.
 
