@@ -43,7 +43,7 @@ Item {
   readonly property int historyCap: 36
 
   readonly property color paper: "#F4F0E6"
-  readonly property color muted: "#8a7a6e"
+  readonly property color muted: "#B7A99A"
   readonly property color accent: "#FF6A00"
   readonly property color acid: "#A8FF3E"
   readonly property color blood: "#C41E3A"

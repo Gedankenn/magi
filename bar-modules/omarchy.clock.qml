@@ -15,15 +15,26 @@ BarWidget {
   moduleName: "omarchy.clock"
 
   readonly property string evaFont: "Chakra Petch"
+  readonly property string segFont: dsegLoader.status === FontLoader.Ready ? dsegLoader.name : "DSEG7 Classic"
   readonly property color accent: "#FF6A00"
   readonly property color red: "#C41E3A"
   readonly property color cream: "#e8dcc8"
 
+  FontLoader {
+    id: dsegLoader
+    source: "file://" + Quickshell.env("HOME") + "/.local/share/fonts/dseg/DSEG7Classic-Bold.ttf"
+  }
+
   property date displayDate: clock.date
 
   // ---- Label text
-  readonly property string timeText: displayDate.toLocaleTimeString(Qt.locale(), "HH:mm")
-  readonly property string dateText: displayDate.toLocaleDateString(Qt.locale("en_US"), "ddd d MMM").toUpperCase()
+  readonly property string timeText: Qt.formatTime(displayDate, "HH:mm")
+  readonly property string dateText: Qt.formatDate(displayDate, "dd.MM.yy")
+  readonly property bool dateOnly: {
+    var f = currentFormat()
+    return f.indexOf("d") !== -1 && f.indexOf("H") === -1
+  }
+  readonly property string ghostMask: currentFormat() === "HH:mm:ss" ? "88:88:88" : "88:88"
 
   // Live format. The bar feeds `format` through the injected settings; a
   // right-click cycle writes the same value back to shell.json, so keeping it
@@ -57,12 +68,12 @@ BarWidget {
   readonly property string shownTime: {
     var f = currentFormat()
     var d = displayDate
-    if (f === "HH:mm:ss") return d.toLocaleTimeString(Qt.locale(), "HH:mm:ss")
-    if (f === "HH mm") return d.toLocaleTimeString(Qt.locale(), "HH") + " : " + d.toLocaleTimeString(Qt.locale(), "mm")
-    if (f === "dd MMM yyyy") return d.toLocaleDateString(Qt.locale("en_US"), "dd MMM yyyy").toUpperCase()
+    if (f === "HH:mm:ss") return Qt.formatTime(d, "HH:mm:ss")
+    if (f === "HH mm") return Qt.formatTime(d, "HH") + ":" + Qt.formatTime(d, "mm")
+    if (f === "dd MMM yyyy") return Qt.formatDate(d, "dd MMM yyyy").toUpperCase()
     if (f.indexOf("d") !== -1 && f.indexOf("H") === -1)
-      return d.toLocaleDateString(Qt.locale("en_US"), f).toUpperCase()
-    try { return Qt.formatTime(d, f) } catch (e) { return d.toLocaleTimeString(Qt.locale(), "HH:mm") }
+      return Qt.formatDate(d, f).toUpperCase()
+    try { return Qt.formatTime(d, f) } catch (e) { return Qt.formatTime(d, "HH:mm") }
   }
 
   function refresh() {
@@ -142,28 +153,39 @@ BarWidget {
       spacing: 10
       anchors.centerIn: parent
 
+      MagiSeg {
+        visible: !root.dateOnly
+        anchors.verticalCenter: parent.verticalCenter
+        value: root.shownTime
+        ghost: root.ghostMask
+        ink: root.accent
+        family: root.segFont
+        pixelSize: 16
+        tracking: 1
+        glow: false
+      }
+
       Text {
-        id: timeLabel
+        visible: root.dateOnly
         textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         text: root.shownTime
-        color: "#F4F0E6"
+        color: root.accent
         font.family: root.evaFont
-        font.pixelSize: 17
+        font.pixelSize: 15
         font.weight: 600
         font.letterSpacing: 1
-        verticalAlignment: Text.AlignVCenter
       }
 
       Text {
         id: dateLabel
-        visible: !root.vertical
+        visible: !root.vertical && !root.dateOnly
         textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         text: root.dateText
-        color: "#FF6A00"
+        color: "#F4F0E6"
         font.family: "Nimbus Sans Narrow"
-        font.pixelSize: 14
+        font.pixelSize: 13
         font.weight: 600
         font.letterSpacing: 0.8
         verticalAlignment: Text.AlignVCenter

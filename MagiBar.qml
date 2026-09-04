@@ -43,6 +43,14 @@ Item {
   property color urgent: Color.bar.active
   property string fontFamily: "Nimbus Sans Narrow"
   property string displayFont: "Chakra Petch"
+  property string segFont: dsegLoader.status === FontLoader.Ready ? dsegLoader.name : "DSEG7 Classic"
+  readonly property color acid: "#A8FF3E"
+  readonly property color casper: "#9B6DFF"
+
+  FontLoader {
+    id: dsegLoader
+    source: "file://" + root.home + "/.local/share/fonts/dseg/DSEG7Classic-Bold.ttf"
+  }
 
   property bool pinned: false
   property bool dashOpen: false
@@ -377,9 +385,29 @@ Item {
     target: "io.github.gedankenn.magi"
     function toggle(): void { root.toggleDash() }
     function open(): void { root.pinned = true; root.openDash() }
-    function close(): void { root.pinned = false; root.dashOpen = false; root.closeSides() }
+    function close(): void {
+      root.pinned = false
+      root.dashOpen = false
+      root.setIslandHot("left", false)
+      root.setIslandHot("right", false)
+      root.closeSides()
+    }
     function show(): void { root.pinned = true; root.openDash() }
     function hide(): void { root.pinned = false; root.dashOpen = false }
+    function session(): void {
+      root.pinned = false
+      root.dashOpen = false
+      root.setIslandHot("right", false)
+      root.setIslandHot("left", true)
+      root.sessionOpen = true
+    }
+    function util(): void {
+      root.pinned = false
+      root.dashOpen = false
+      root.setIslandHot("left", false)
+      root.setIslandHot("right", true)
+      root.utilOpen = true
+    }
   }
 
   Variants {
@@ -404,6 +432,9 @@ Item {
     readonly property int dashH: 520
     readonly property int utilW: 320
     readonly property int utilH: 640
+    readonly property int schematicW: 348
+    readonly property int schematicH: 520
+    readonly property int schemaGap: 10
 
     function clampX(x, w) {
       return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
@@ -522,6 +553,20 @@ Item {
 
     MagiDropWindow {
       screen: seat.screen
+      edge: "left"
+      opened: root.sessionOpen
+      menuSource: "MagiSchematic.qml"
+      namespaceName: "magi-unit-02"
+      heading: "UNIT-02  //  SORYU"
+      kicker: "EVA-02"
+      unitId: "02"
+      fixedWidth: seat.schematicW
+      fixedHeight: seat.schematicH
+      posX: seat.clampX(seat.sessionX + seat.sessionW + seat.schemaGap, seat.schematicW)
+    }
+
+    MagiDropWindow {
+      screen: seat.screen
       edge: "top"
       opened: root.dashOpen
       menuSource: "Dashboard.qml"
@@ -545,6 +590,20 @@ Item {
       fixedHeight: seat.utilH
       posX: seat.utilX
     }
+
+    MagiDropWindow {
+      screen: seat.screen
+      edge: "right"
+      opened: root.utilOpen
+      menuSource: "MagiSchematic.qml"
+      namespaceName: "magi-unit-01"
+      heading: "UNIT-01  //  IKARI"
+      kicker: "EVA-01"
+      unitId: "01"
+      fixedWidth: seat.schematicW
+      fixedHeight: seat.schematicH
+      posX: seat.clampX(seat.utilX - seat.schematicW - seat.schemaGap, seat.schematicW)
+    }
   }
 
   component MagiDropWindow: PanelWindow {
@@ -555,6 +614,7 @@ Item {
     property string namespaceName: "magi-drop"
     property string heading: ""
     property string kicker: ""
+    property string unitId: ""
     property int fixedWidth: 240
     property int fixedHeight: 200
     property int posX: 0
@@ -607,7 +667,7 @@ Item {
         id: plate
         anchors.fill: parent
         radius: 0
-        color: "#0c0a0d"
+        color: "#100c10"
         borderSpec: Border.flat("#FF6A00", 2)
         scale: dropWin.opened ? 1 : 0.985
         transformOrigin: Item.Top
@@ -618,6 +678,14 @@ Item {
           }
         }
 
+        Rectangle {
+          z: 3
+          anchors.fill: parent
+          anchors.margins: 4
+          color: "transparent"
+          border.width: 1
+          border.color: Qt.rgba(1, 0.42, 0, 0.16)
+        }
         Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
         Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
         Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.right: parent.right; anchors.top: parent.top }
@@ -651,16 +719,49 @@ Item {
           anchors.right: parent.right
           height: 44
 
-          Text {
+          Row {
             anchors.left: parent.left
             anchors.leftMargin: 20
             anchors.verticalCenter: parent.verticalCenter
-            text: dropWin.heading
-            color: "#FF6A00"
-            font.family: root.displayFont
-            font.pixelSize: 16
-            font.letterSpacing: 2
-            font.weight: Font.Bold
+            spacing: 10
+
+            Text {
+              text: dropWin.heading.indexOf("  //  ") >= 0 ? dropWin.heading.split("  //  ")[0] : dropWin.heading
+              color: "#FF6A00"
+              font.family: root.displayFont
+              font.pixelSize: 16
+              font.letterSpacing: 2
+              font.weight: Font.Bold
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+              visible: dropWin.heading.indexOf("  //  ") >= 0
+              text: "//"
+              color: "#FF6A00"
+              font.family: root.displayFont
+              font.pixelSize: 16
+              font.letterSpacing: 2
+              font.weight: Font.Bold
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+              visible: dropWin.heading.indexOf("  //  ") >= 0
+              text: dropWin.heading.split("  //  ")[1] || ""
+              color: root.acid
+              font.family: root.displayFont
+              font.pixelSize: 16
+              font.letterSpacing: 2
+              font.weight: Font.Bold
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            MagiIcon {
+              visible: dropWin.edge === "top"
+              kind: "warn"
+              stroke: "#FF6A00"
+              width: 18
+              height: 18
+              anchors.verticalCenter: parent.verticalCenter
+            }
           }
 
           Text {
@@ -696,6 +797,7 @@ Item {
             if (!item) return
             item.host = root
             if ("edge" in item) item.edge = dropWin.edge
+            if ("unitId" in item && dropWin.unitId) item.unitId = dropWin.unitId
             item.opened = Qt.binding(function() { return dropWin.opened })
           }
         }

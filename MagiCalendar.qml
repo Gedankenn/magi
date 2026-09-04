@@ -186,16 +186,15 @@ Item {
               required property var modelData
               width: root.cellSize
               height: root.cellSize
-              color: modelData.today ? Qt.rgba(1, 0.42, 0, 0.16) : "transparent"
-              border.width: modelData.today ? 1 : 0
-              border.color: root.accent
+              color: modelData.today ? root.accent : "transparent"
+              border.width: 0
               Text {
                 anchors.centerIn: parent
                 text: modelData.day
                 color: modelData.today
-                  ? root.accent
+                  ? "#0c0a0d"
                   : (modelData.inMonth
-                    ? (modelData.weekend ? root.blood : root.paper)
+                    ? (modelData.weekend ? "#E0A090" : root.paper)
                     : Qt.rgba(0.96, 0.94, 0.9, 0.22))
                 font.family: root.fontFamily
                 font.pixelSize: 11

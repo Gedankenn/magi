@@ -23,7 +23,7 @@ BarWidget {
   readonly property real audioPeak: bar && bar.audioPeak ? bar.audioPeak : 0
 
   readonly property string displayFont: "Chakra Petch"
-  readonly property color accent: "#FF6A00"
+  readonly property color accent: "#9B6DFF"
   readonly property color paper: "#F4F0E6"
   readonly property color muted: "#9A8B7C"
   readonly property int titleWidth: 148
@@ -60,6 +60,8 @@ BarWidget {
       barCount: 8
       barWidth: 3
       gap: 2
+      fill: root.accent
+      hot: "#A8FF3E"
       levels: root.cavaLevels
       peak: root.audioPeak
       playing: root.playing

@@ -11,13 +11,25 @@ Item {
   property var host: null
   property bool opened: false
 
-  readonly property color paper: "#F4F0E6"
-  readonly property color muted: "#9A8B7C"
-  readonly property color accent: "#FF6A00"
-  readonly property color blood: "#C41E3A"
-  readonly property color acid: "#A8FF3E"
-  readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : "Nimbus Sans Narrow"
-  readonly property string displayFont: host && host.displayFont ? host.displayFont : "Chakra Petch"
+  MagiTheme { id: magi }
+
+  readonly property color paper: magi.paper
+  readonly property color muted: magi.muted
+  readonly property color accent: magi.nerv
+  readonly property color blood: magi.seele
+  readonly property color acid: magi.acid
+  readonly property color casper: magi.casper
+  readonly property color cyan: magi.cyan
+  readonly property color pane: magi.pane
+  readonly property color dim: magi.dim
+  readonly property string fontFamily: host && host.fontFamily ? host.fontFamily : magi.body
+  readonly property string displayFont: host && host.displayFont ? host.displayFont : magi.display
+  readonly property string segFont: host && host.segFont ? host.segFont : (dsegLoader.status === FontLoader.Ready ? dsegLoader.name : magi.seg)
+
+  FontLoader {
+    id: dsegLoader
+    source: "file://" + Quickshell.env("HOME") + "/.local/share/fonts/dseg/DSEG7Classic-Bold.ttf"
+  }
 
   property string weatherEmoji: ""
   property string weatherTemp: ""
@@ -31,6 +43,7 @@ Item {
   property var hourlySeries: []
   property int seriesMax: 0
   property int seriesMin: 0
+  property string rainPeakLabel: ""
   property real cpuUsage: 0
   property real memUsage: 0
   property real diskUsage: 0
@@ -124,7 +137,16 @@ Item {
           var t = parseInt(hours[h].time) / 100
           var tempC = parseFloat(hours[h].tempC)
           if (isNaN(tempC)) continue
-          series.push({ t: i * 24 + t, temp: tempC })
+          var hum = parseFloat(hours[h].humidity)
+          var rain = parseFloat(hours[h].chanceofrain)
+          var mm = parseFloat(hours[h].precipMM)
+          series.push({
+            t: i * 24 + t,
+            temp: tempC,
+            hum: isNaN(hum) ? 0 : hum,
+            rain: isNaN(rain) ? 0 : rain,
+            mm: isNaN(mm) ? 0 : mm
+          })
           if (tempC > maxT) maxT = tempC
           if (tempC < minT) minT = tempC
         }
@@ -133,9 +155,11 @@ Item {
       hourlySeries = series
       seriesMax = maxT
       seriesMin = minT
+      root.rainPeakLabel = root.peakRainLabel(series)
     } catch (e) {
       dailyForecast = []
       hourlySeries = []
+      rainPeakLabel = ""
     }
   }
 
@@ -197,6 +221,38 @@ Item {
     return next
   }
 
+  readonly property string weatherGlyph: {
+    var s = (String(weatherCond || "") + " " + String(weatherEmoji || "")).toLowerCase()
+    if (/thunder|storm/.test(s)) return "storm"
+    if (/snow|sleet|blizzard|ice/.test(s)) return "snow"
+    if (/rain|drizzle|shower/.test(s)) return "rain"
+    if (/fog|mist|haze|smoke/.test(s)) return "fog"
+    if (/sun|clear|fair/.test(s)) return "sun"
+    if (/cloud|overcast/.test(s)) return "cloud"
+    return weatherCond ? "cloud" : "rain"
+  }
+
+  function cycleDay(d) {
+    var start = new Date(d.getFullYear(), 0, 0)
+    return Math.max(1, Math.floor((d.getTime() - start.getTime()) / 86400000))
+  }
+
+  function wash(c, a) {
+    return Qt.rgba(c.r, c.g, c.b, a)
+  }
+
+  readonly property string hudTime: Qt.formatTime(clock.date, "HH:mm:ss")
+  readonly property string hudDateShort: Qt.formatDate(clock.date, "dd.MM.yy")
+  readonly property string hudDateLong: Qt.formatDate(clock.date, "ddd dd MMM yyyy").toUpperCase()
+  readonly property string hudCycle: "C" + cycleDay(clock.date)
+
+  readonly property string placeLabel: {
+    if (cityName && String(cityName).length) return String(cityName).toUpperCase()
+    var p = String(weatherPlace || "").trim()
+    if (!p || /^-?\d/.test(p)) return "GEOFRONT"
+    return p.toUpperCase()
+  }
+
   function dayLabel(iso) {
     var d = new Date(Date.parse(iso))
     if (isNaN(d.getTime())) return ""
@@ -228,6 +284,21 @@ Item {
     var lo = Math.min(root.seriesMin, 0), hi = root.seriesMax
     var span = Math.max(1, hi - lo)
     return 10 + (1 - (temp - lo) / span) * (h - 20)
+  }
+
+  function peakRainLabel(series) {
+    var list = series || []
+    if (!list.length) return ""
+    var idx = 0
+    for (var i = 1; i < list.length; i++) {
+      if ((list[i].mm || 0) > (list[idx].mm || 0)) idx = i
+      else if ((list[i].mm || 0) === (list[idx].mm || 0) && (list[i].rain || 0) > (list[idx].rain || 0)) idx = i
+    }
+    var mm = list[idx].mm || 0
+    var rain = Math.round(list[idx].rain || 0)
+    if (mm <= 0 && rain <= 0) return ""
+    if (mm <= 0) return rain + "%"
+    return mm.toFixed(mm >= 10 ? 0 : 1) + "mm  |  " + rain + "%"
   }
 
   function pct(value) {
@@ -327,29 +398,70 @@ Item {
     id: pane
     property string coreId: "00"
     property string title: ""
+    property string iconKind: ""
+    property color accentColor: root.accent
+    property color iconColor: root.acid
+    property color paneFill: "#161218"
+    property bool violet: false
     property alias body: paneBody
-    color: "#120e10"
+    color: pane.paneFill
     border.width: 1
-    border.color: "#5A2A10"
+    border.color: root.wash(pane.accentColor, 0.32)
 
     Rectangle {
-      width: 5
-      anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-      color: root.accent
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 52
+      gradient: Gradient {
+        GradientStop { position: 0.0; color: root.wash(pane.accentColor, 0.10) }
+        GradientStop { position: 1.0; color: "transparent" }
+      }
     }
 
-    Text {
+    Rectangle {
+      width: 4
+      anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+      color: pane.accentColor
+    }
+    Rectangle {
+      width: 1
+      x: 4
+      anchors { top: parent.top; bottom: parent.bottom }
+      color: root.wash(pane.accentColor, 0.4)
+    }
+
+    Item {
       id: paneHead
       anchors.top: parent.top
       anchors.left: parent.left
-      anchors.leftMargin: 14
+      anchors.right: parent.right
+      anchors.leftMargin: 16
+      anchors.rightMargin: 10
       anchors.topMargin: 10
-      text: pane.coreId + "   " + pane.title
-      color: root.accent
-      font.family: root.displayFont
-      font.pixelSize: 13
-      font.weight: 600
-      font.letterSpacing: 2
+      height: 18
+
+      Text {
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: pane.coreId + "   " + pane.title
+        color: pane.accentColor
+        font.family: root.displayFont
+        font.pixelSize: 13
+        font.weight: 600
+        font.letterSpacing: 2.2
+      }
+
+      MagiIcon {
+        visible: pane.iconKind !== ""
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        kind: pane.iconKind
+        stroke: pane.iconColor
+        accent: pane.violet ? root.casper : root.cyan
+        width: 20
+        height: 20
+      }
     }
 
     Rectangle {
@@ -357,11 +469,11 @@ Item {
       anchors.top: paneHead.bottom
       anchors.topMargin: 8
       anchors.left: parent.left
-      anchors.leftMargin: 14
+      anchors.leftMargin: 16
       anchors.right: parent.right
       anchors.rightMargin: 10
       height: 1
-      color: "#5A2A10"
+      color: root.wash(pane.accentColor, 0.28)
     }
 
     Item {
@@ -382,30 +494,67 @@ Item {
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    height: 42
+    height: 56
 
     Text {
       anchors.left: parent.left
       anchors.leftMargin: 18
       anchors.verticalCenter: parent.verticalCenter
-      text: root.host && root.host.pinned ? "PINNED" : (root.weatherPlace || "GEOFRONT").toUpperCase()
-      color: root.paper
+      text: root.host && root.host.pinned ? "PINNED" : root.placeLabel
+      color: root.host && root.host.pinned ? root.acid : root.paper
       font.family: root.displayFont
-      font.pixelSize: 14
+      font.pixelSize: 13
       font.weight: 600
-      font.letterSpacing: 2
+      font.letterSpacing: 2.4
     }
 
-    Text {
+    Column {
       anchors.right: parent.right
       anchors.rightMargin: 18
       anchors.verticalCenter: parent.verticalCenter
-      text: Qt.formatTime(clock.date, "HH:mm:ss")
-      color: root.paper
-      font.family: root.displayFont
-      font.pixelSize: 28
-      font.weight: 600
-      font.letterSpacing: 1
+      spacing: 4
+
+      MagiSeg {
+        anchors.right: parent.right
+        value: root.hudTime
+        ghost: "88:88:88"
+        ink: root.accent
+        family: root.segFont
+        pixelSize: 28
+        tracking: 2
+        glow: true
+      }
+
+      Row {
+        anchors.right: parent.right
+        spacing: 8
+        Text {
+          text: root.hudDateShort
+          color: root.accent
+          font.family: root.displayFont
+          font.pixelSize: 11
+          font.letterSpacing: 1.4
+          font.weight: 600
+        }
+        Text { text: "·"; color: root.dim; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+        Text {
+          text: root.hudDateLong
+          color: root.muted
+          font.family: root.displayFont
+          font.pixelSize: 11
+          font.letterSpacing: 1.4
+          font.weight: 600
+        }
+        Text { text: "·"; color: root.dim; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+        Text {
+          text: root.hudCycle
+          color: root.acid
+          font.family: root.displayFont
+          font.pixelSize: 11
+          font.letterSpacing: 1.4
+          font.weight: 600
+        }
+      }
     }
   }
 
@@ -426,47 +575,70 @@ Item {
       height: parent.height
       coreId: "01"
       title: "BALTHASAR"
+      iconKind: "balthasar"
+      accentColor: root.cyan
+      iconColor: root.cyan
+      paneFill: magi.paneCool
 
       Column {
         parent: balthasar.body
         width: parent.width
         spacing: 8
 
-        Text {
+        Row {
           width: parent.width
-          text: (root.cityName || root.weatherPlace || "GEOFRONT").toUpperCase()
-          color: root.accent
-          font.family: root.displayFont
-          font.pixelSize: 13
-          font.weight: 600
-          font.letterSpacing: 2
-          elide: Text.ElideRight
+          spacing: 12
+
+          MagiIcon {
+            width: 42
+            height: 42
+            kind: root.weatherGlyph
+            stroke: root.acid
+            accent: root.cyan
+          }
+
+          Column {
+            width: parent.width - 54
+            spacing: 3
+            anchors.verticalCenter: parent.verticalCenter
+            Text {
+              text: root.weatherTemp || "—"
+              color: root.acid
+              font.family: root.displayFont
+              font.pixelSize: 34
+              font.weight: Font.Bold
+            }
+            Text {
+              width: parent.width
+              text: (root.weatherCond || "NO WEATHER SIGNAL").toUpperCase()
+              color: root.muted
+              font.family: root.displayFont
+              font.pixelSize: 11
+              font.letterSpacing: 1.8
+              font.weight: 600
+              elide: Text.ElideRight
+            }
+          }
         }
 
         Text {
-          text: (root.weatherTemp || "—") + "   " + (root.weatherEmoji || "")
-          color: root.paper
-          font.family: root.fontFamily
-          font.pixelSize: 28
-          font.bold: true
-        }
-        Text {
           width: parent.width
-          text: root.weatherCond || "No weather signal"
+          text: "WEATHER  //  " + root.placeLabel
           color: root.paper
-          font.family: root.fontFamily
+          font.family: root.displayFont
           font.pixelSize: 12
-          wrapMode: Text.WordWrap
+          font.letterSpacing: 1.2
+          elide: Text.ElideRight
         }
         Text {
           width: parent.width
-          text: (root.weatherHum ? "Hum  " + root.weatherHum : "") + (root.weatherWind ? "   Wind  " + root.weatherWind : "")
+          text: (root.weatherHum ? "HUM  " + root.weatherHum : "") + (root.weatherWind ? "   ·   WIND  " + root.weatherWind : "")
           color: root.muted
           font.family: root.fontFamily
           font.pixelSize: 11
         }
 
-        Rectangle { width: parent.width; height: 1; color: "#5A2A10" }
+        Rectangle { width: parent.width; height: 1; color: root.wash(root.cyan, 0.22) }
 
         Text {
           text: "NEXT DAYS"
@@ -479,7 +651,7 @@ Item {
         Canvas {
           id: tempChart
           width: parent.width
-          height: 110
+          height: 68
 
           onPaint: {
             var ctx = tempChart.getContext("2d")
@@ -492,7 +664,7 @@ Item {
 
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
-            ctx.strokeStyle = "#3a2418"
+            ctx.strokeStyle = "rgba(122,255,255,0.16)"
             ctx.lineWidth = 1
             ctx.beginPath()
             ctx.moveTo(0, h - 22)
@@ -501,19 +673,19 @@ Item {
 
             for (var d = 0; d < root.dailyForecast.length; d++) {
               var dx = root.spX(d * 24, w)
-              ctx.strokeStyle = Qt.rgba(0.35, 0.14, 0.1, 1)
+              ctx.strokeStyle = "rgba(122,255,255,0.12)"
               ctx.lineWidth = 1
               ctx.beginPath()
               ctx.moveTo(dx, 6)
               ctx.lineTo(dx, h - 26)
               ctx.stroke()
-              ctx.fillStyle = "#9A8B7C"
+              ctx.fillStyle = "#B7A99A"
               ctx.font = "600 10px 'Chakra Petch'"
               ctx.textAlign = "center"
               ctx.fillText(root.dayLabel(root.dailyForecast[d].date), dx, 10)
             }
 
-            ctx.strokeStyle = "#FF6A00"
+            ctx.strokeStyle = "#7AFFFF"
             ctx.lineWidth = 2
             ctx.beginPath()
             for (var i = 0; i < series.length; i++) {
@@ -530,7 +702,7 @@ Item {
               if (series[m].temp < series[minIdx].temp) minIdx = m
             }
 
-            ctx.fillStyle = "#FF6A00"
+            ctx.fillStyle = "#7AFFFF"
             for (var j = 0; j < series.length; j++) {
               ctx.beginPath()
               ctx.arc(root.spX(series[j].t, w), root.spY(series[j].temp, h), 2, 0, Math.PI * 2)
@@ -560,6 +732,115 @@ Item {
             function onDailyForecastChanged() { tempChart.requestPaint() }
           }
         }
+
+        Item {
+          width: parent.width
+          height: 12
+          Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "RAIN  //  HUM"
+            color: root.muted
+            font.family: root.displayFont
+            font.pixelSize: 10
+            font.letterSpacing: 2
+          }
+          Text {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.rainPeakLabel !== ""
+            text: root.rainPeakLabel
+            color: root.acid
+            font.family: root.displayFont
+            font.pixelSize: 10
+            font.letterSpacing: 1.2
+            font.weight: 600
+          }
+        }
+
+        Canvas {
+          id: rainChart
+          width: parent.width
+          height: 78
+          onWidthChanged: requestPaint()
+          onHeightChanged: requestPaint()
+
+          onPaint: {
+            var ctx = rainChart.getContext("2d")
+            var w = rainChart.width
+            var h = rainChart.height
+            ctx.clearRect(0, 0, w, h)
+            var series = root.hourlySeries
+            if (!series || series.length < 2 || w < 8 || h < 8) return
+
+            ctx.lineJoin = "round"
+            ctx.lineCap = "round"
+
+            var maxMm = 0.4
+            var i
+            for (i = 0; i < series.length; i++) {
+              if ((series[i].mm || 0) > maxMm) maxMm = series[i].mm
+            }
+            maxMm = maxMm * 1.2
+
+            ctx.strokeStyle = "rgba(122,255,255,0.16)"
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(0, h - 4)
+            ctx.lineTo(w, h - 4)
+            ctx.stroke()
+
+            for (var d = 0; d < root.dailyForecast.length; d++) {
+              var dx = root.spX(d * 24, w)
+              ctx.strokeStyle = "rgba(122,255,255,0.12)"
+              ctx.beginPath()
+              ctx.moveTo(dx, 4)
+              ctx.lineTo(dx, h - 4)
+              ctx.stroke()
+            }
+
+            var n = series.length
+            var slot = (w - 16) / Math.max(1, n)
+            var barW = Math.max(2, slot * 0.58)
+            var peakIdx = 0
+            for (i = 1; i < n; i++) {
+              if ((series[i].mm || 0) > (series[peakIdx].mm || 0)) peakIdx = i
+            }
+
+            for (i = 0; i < n; i++) {
+              var cx = root.spX(series[i].t, w)
+              var rain = Math.max(0, Math.min(100, series[i].rain || 0))
+              var mm = Math.max(0, series[i].mm || 0)
+              var chanceH = (rain / 100) * (h - 10) * 0.55
+              var mmH = (mm / maxMm) * (h - 10)
+              if (chanceH > 1) {
+                ctx.fillStyle = "rgba(122,255,255,0.14)"
+                ctx.fillRect(cx - barW / 2, h - 4 - chanceH, barW, chanceH)
+              }
+              if (mmH > 1) {
+                ctx.fillStyle = i === peakIdx ? "#A8FF3E" : "rgba(122,255,255,0.72)"
+                ctx.fillRect(cx - barW / 2, h - 4 - mmH, barW, mmH)
+              }
+            }
+
+            ctx.strokeStyle = "#A8FF3E"
+            ctx.lineWidth = 1.7
+            ctx.beginPath()
+            for (i = 0; i < n; i++) {
+              var hx = root.spX(series[i].t, w)
+              var hy = 6 + (1 - Math.max(0, Math.min(100, series[i].hum || 0)) / 100) * (h - 12)
+              if (i === 0) ctx.moveTo(hx, hy)
+              else ctx.lineTo(hx, hy)
+            }
+            ctx.stroke()
+          }
+
+          Connections {
+            target: root
+            function onHourlySeriesChanged() { rainChart.requestPaint() }
+            function onDailyForecastChanged() { rainChart.requestPaint() }
+          }
+        }
       }
     }
 
@@ -569,6 +850,7 @@ Item {
       height: parent.height
       coreId: "04"
       title: "SACHIEL"
+      iconKind: "sachiel"
 
       MagiCalendar {
         parent: sachiel.body
@@ -590,6 +872,7 @@ Item {
       height: parent.height
       coreId: "02"
       title: "MELCHIOR"
+      iconKind: "melchior"
 
       Item {
         parent: melchior.body
@@ -668,6 +951,11 @@ Item {
       height: parent.height
       coreId: "03"
       title: "CASPER"
+      iconKind: "casper"
+      accentColor: root.casper
+      iconColor: root.casper
+      paneFill: magi.paneViolet
+      violet: true
 
       Column {
         parent: casper.body
@@ -682,9 +970,9 @@ Item {
           Rectangle {
             width: 72
             height: 72
-            color: "#1a1210"
+            color: "#14101c"
             border.width: 1
-            border.color: root.accent
+            border.color: root.casper
             clip: true
 
             Image {
@@ -700,7 +988,7 @@ Item {
               anchors.centerIn: parent
               visible: root.trackArt === ""
               text: "♪"
-              color: root.accent
+              color: root.casper
               font.family: root.displayFont
               font.pixelSize: 28
             }
@@ -749,7 +1037,7 @@ Item {
           Text {
             width: parent.width
             text: "AWAITING SIGNAL"
-            color: root.accent
+            color: root.casper
             font.family: root.displayFont
             font.pixelSize: 13
             font.weight: 600
@@ -761,14 +1049,14 @@ Item {
             id: scanField
             width: parent.width
             height: 18
-            color: "#141014"
+            color: "#14101c"
             clip: true
 
             Rectangle {
               id: scanBeam
               width: 120
               height: parent.height
-              color: Qt.rgba(1, 0.42, 0, 0.16)
+              color: Qt.rgba(0.61, 0.43, 1, 0.18)
             }
 
             SequentialAnimation {
@@ -825,12 +1113,12 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 8
-            color: "#2a1510"
+            color: "#1a1424"
 
             Rectangle {
               width: Math.max(2, parent.width * root.mediaRatio)
               height: parent.height
-              color: root.accent
+              color: root.casper
               Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             }
 
@@ -851,6 +1139,8 @@ Item {
           barCount: 16
           barWidth: 4
           gap: 2
+          fill: root.casper
+          hot: root.acid
           levels: root.host && root.host.cavaLevels ? root.host.cavaLevels : []
           peak: root.host && root.host.audioPeak ? root.host.audioPeak : 0
           playing: root.playing
@@ -859,36 +1149,23 @@ Item {
 
         Row {
           spacing: 8
+          width: parent.width
           Repeater {
             model: [
-              { label: "PREV", action: "prev" },
-              { label: root.playing ? "PAUSE" : "PLAY", action: "play" },
-              { label: "NEXT", action: "next" }
+              { label: "PREV", action: "prev", primary: false },
+              { label: root.playing ? "PAUSE" : "PLAY", action: "play", primary: true },
+              { label: "NEXT", action: "next", primary: false }
             ]
-            Rectangle {
+            MagiBtn {
               required property var modelData
-              width: 62
+              width: (parent.width - 16) / 3
               height: 30
-              color: hit.containsMouse ? "#402010" : "#1a1210"
-              border.width: 1
-              border.color: root.accent
-              Behavior on color { ColorAnimation { duration: 120 } }
-              Text {
-                anchors.centerIn: parent
-                text: modelData.label
-                color: root.paper
-                font.family: root.displayFont
-                font.pixelSize: 11
-                font.letterSpacing: 1
-                font.weight: 600
-              }
-              MouseArea {
-                id: hit
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.mediaAction(modelData.action)
-              }
+              label: modelData.label
+              accent: root.casper
+              paper: root.paper
+              displayFont: root.displayFont
+              primary: modelData.primary
+              onClicked: root.mediaAction(modelData.action)
             }
           }
         }

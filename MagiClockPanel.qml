@@ -110,11 +110,12 @@ Panel {
         }
 
         Text {
-          text: Qt.formatDate(root.today, "dddd d MMMM").toUpperCase()
+          text: Qt.formatDate(root.today, "dd.MM.yy").toUpperCase() + "  |  "
+            + Qt.formatDate(root.today, "dddd d MMMM yyyy").toUpperCase()
           color: root.paper
           font.family: root.displayFont
-          font.pixelSize: 18
-          font.letterSpacing: 1.4
+          font.pixelSize: 16
+          font.letterSpacing: 1.2
           font.weight: 600
         }
 

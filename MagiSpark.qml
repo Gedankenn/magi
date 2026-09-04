@@ -27,9 +27,9 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: "#141014"
+    color: "#0a080c"
     border.width: 1
-    border.color: "#FF6A00"
+    border.color: "#36FF6A00"
   }
 
   Column {
@@ -110,17 +110,17 @@ Item {
             ctx.moveTo(0, yOf(series[0] || 0))
             for (var s = 1; s < count; s++) ctx.lineTo(s * step, yOf(series[s] || 0))
             ctx.strokeStyle = css(color, 1)
-            ctx.lineWidth = 2
+            ctx.lineWidth = 1.8
             ctx.lineJoin = "round"
             ctx.stroke()
             ctx.lineTo((count - 1) * step, h)
             ctx.lineTo(0, h)
             ctx.closePath()
-            ctx.fillStyle = css(color, fillAlpha)
+            ctx.fillStyle = css(color, fillAlpha * 0.7)
             ctx.fill()
           }
 
-          ctx.strokeStyle = "rgba(255,106,0,0.18)"
+          ctx.strokeStyle = "rgba(255,106,0,0.10)"
           ctx.lineWidth = 1
           ctx.beginPath()
           ctx.moveTo(0, 0); ctx.lineTo(w, 0)
@@ -143,7 +143,7 @@ Item {
           width: parent.width
           height: parent.height / 3
           text: root.scaleHigh
-          color: "#e8dcc8"
+          color: "#B7A99A"
           font.family: root.bodyFont
           font.pixelSize: 11
           horizontalAlignment: Text.AlignRight
@@ -157,7 +157,7 @@ Item {
           width: parent.width
           height: parent.height / 3
           text: root.scaleLow
-          color: "#e8dcc8"
+          color: "#B7A99A"
           font.family: root.bodyFont
           font.pixelSize: 11
           horizontalAlignment: Text.AlignRight
@@ -172,14 +172,14 @@ Item {
       Text {
         anchors.left: parent.left
         text: "MIN  " + root.scaleLow
-        color: "#9A8B7C"
+        color: "#8A7A6E"
         font.family: root.bodyFont
         font.pixelSize: 11
       }
       Text {
         anchors.right: parent.right
         text: "MAX  " + root.scaleHigh
-        color: "#9A8B7C"
+        color: "#8A7A6E"
         font.family: root.bodyFont
         font.pixelSize: 11
       }
