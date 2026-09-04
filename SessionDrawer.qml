@@ -8,6 +8,16 @@ Item {
 
   property var host: null
   property bool opened: false
+  property string edge: "left"
+
+  function holdMenu(on) {
+    if (host && typeof host.setMenuHot === "function") host.setMenuHot(edge, on)
+  }
+
+  HoverHandler {
+    blocking: false
+    onHoveredChanged: root.holdMenu(hovered)
+  }
 
   readonly property color paper: "#F4F0E6"
   readonly property color accent: "#FF6A00"
@@ -77,6 +87,8 @@ Item {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
+          onEntered: root.holdMenu(true)
+          onExited: root.holdMenu(false)
           onClicked: root.run(modelData.cmd)
         }
       }

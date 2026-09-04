@@ -64,7 +64,7 @@ Item {
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
   readonly property int dashDelay: 40
-  readonly property int hideDelay: 280
+  readonly property int hideDelay: 520
   readonly property int dropAnimMs: 380
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(12)
@@ -599,16 +599,8 @@ Item {
 
       HoverHandler {
         blocking: false
-        enabled: dropWin.opened
         onHoveredChanged: root.setMenuHot(dropWin.edge, hovered)
         Component.onDestruction: root.setMenuHot(dropWin.edge, false)
-      }
-
-      MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton
-        onContainsMouseChanged: root.setMenuHot(dropWin.edge, containsMouse)
       }
 
       BorderSurface {
@@ -703,6 +695,7 @@ Item {
           onLoaded: {
             if (!item) return
             item.host = root
+            if ("edge" in item) item.edge = dropWin.edge
             item.opened = Qt.binding(function() { return dropWin.opened })
           }
         }

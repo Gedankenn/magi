@@ -9,10 +9,18 @@ Item {
 
   property var host: null
   property bool opened: false
-  property string cpuTemp: ""
-  property string gpuTemp: ""
-  property string gpuUsage: ""
+  property string edge: "right"
+
+  function holdMenu(on) {
+    if (host && typeof host.setMenuHot === "function") host.setMenuHot(edge, on)
+  }
+
+  HoverHandler {
+    blocking: false
+    onHoveredChanged: root.holdMenu(hovered)
+  }
   property string upTime: ""
+  property string diskFree: ""
 
   property string netIp: ""
   property string netIface: ""
@@ -23,11 +31,15 @@ Item {
   property real txRate: 0
   property real prevRx: 0
   property real prevTx: 0
+  property real readRate: 0
+  property real writeRate: 0
+  property real prevRead: 0
+  property real prevWrite: 0
   property real ratePrevTime: 0
   property var rxHistory: []
   property var txHistory: []
-  property var cpuHistory: []
-  property var gpuHistory: []
+  property var readHistory: []
+  property var writeHistory: []
   readonly property int historyCap: 36
 
   readonly property color paper: "#F4F0E6"
@@ -61,10 +73,8 @@ Item {
       if (cut < 0) continue
       map[lines[i].slice(0, cut)] = lines[i].slice(cut + 1)
     }
-    cpuTemp = map.tcpu || ""
-    gpuTemp = map.tgpu || ""
-    gpuUsage = map.gpu || ""
     upTime = map.up || ""
+    diskFree = root.fmtBytes(parseInt(map.dfree) || 0)
     netIp = map.ip || ""
     netIface = map.iface || ""
     netGateway = map.gw || ""
@@ -72,27 +82,39 @@ Item {
     netConnected = map.state === "connected"
     var rx = parseInt(map.rx) || 0
     var tx = parseInt(map.tx) || 0
+    var dread = parseInt(map.dread) || 0
+    var dwrite = parseInt(map.dwrite) || 0
     var now = Date.now()
-    if (root.prevRx > 0 && root.prevTx > 0 && now > root.ratePrevTime) {
+    if (root.ratePrevTime > 0 && now > root.ratePrevTime) {
       var dt = (now - root.ratePrevTime) / 1000
       if (dt > 0) {
-        root.rxRate = Math.max(0, (rx - root.prevRx) / dt)
-        root.txRate = Math.max(0, (tx - root.prevTx) / dt)
+        if (root.prevRx > 0) root.rxRate = Math.max(0, (rx - root.prevRx) / dt)
+        if (root.prevTx > 0) root.txRate = Math.max(0, (tx - root.prevTx) / dt)
+        if (root.prevRead > 0) root.readRate = Math.max(0, (dread - root.prevRead) / dt)
+        if (root.prevWrite > 0) root.writeRate = Math.max(0, (dwrite - root.prevWrite) / dt)
       }
     }
     root.prevRx = rx
     root.prevTx = tx
+    root.prevRead = dread
+    root.prevWrite = dwrite
     root.ratePrevTime = now
     root.rxHistory = root.pushSample(root.rxHistory, root.rxRate)
     root.txHistory = root.pushSample(root.txHistory, root.txRate)
-    root.cpuHistory = root.pushSample(root.cpuHistory, parseFloat(root.cpuTemp) || 0)
-    root.gpuHistory = root.pushSample(root.gpuHistory, parseFloat(root.gpuTemp) || 0)
+    root.readHistory = root.pushSample(root.readHistory, root.readRate)
+    root.writeHistory = root.pushSample(root.writeHistory, root.writeRate)
   }
 
   function fmtRate(bytes) {
     if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB/s"
     if (bytes >= 1024) return Math.round(bytes / 1024) + " KB/s"
     return Math.round(bytes) + " B/s"
+  }
+
+  function fmtBytes(n) {
+    if (n >= 1073741824) return (n / 1073741824).toFixed(0) + "G"
+    if (n >= 1048576) return Math.round(n / 1048576) + "M"
+    return Math.round(n / 1024) + "K"
   }
 
   function historyMax(a, b) {
@@ -106,6 +128,7 @@ Item {
   }
 
   readonly property string netScaleHigh: fmtRate(Math.max(historyMax(rxHistory, txHistory) * 1.18, 1024))
+  readonly property string diskScaleHigh: fmtRate(Math.max(historyMax(readHistory, writeHistory) * 1.18, 1024))
 
   function run(args) {
     if (!args || !args.length) return
@@ -117,7 +140,7 @@ Item {
 
   Process {
     id: statsProc
-    command: ["sh", "-c", "IFACE=$(ip -4 route show default | awk '{print $5; exit}'); echo tcpu=$(sensors 2>/dev/null | awk '/k10temp/{f=1;next} f&&/Tctl:/{gsub(/[^0-9.]/,\"\",$2); print $2; exit}'); echo tgpu=$(sensors 2>/dev/null | awk '/amdgpu-pci-0300/{f=1;next} f&&/edge:/{gsub(/[^0-9.]/,\"\",$2); print $2; exit}'); echo gpu=$(cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null); echo up=$(uptime -p | sed 's/up //' | tr -d '\\n'); echo ip=$(ip -4 -brief addr show scope global | awk '{print $3}' | cut -d/ -f1); echo iface=$IFACE; echo gw=$(ip -4 route show default | awk '{print $3; exit}'); echo ssid=$(nmcli -t -f NAME con show --active 2>/dev/null | head -1); echo state=$(nmcli -t -f STATE g 2>/dev/null); echo rx=$(awk -v i=\"$IFACE\" '$1 ~ i \":\" {print $2}' /proc/net/dev); echo tx=$(awk -v i=\"$IFACE\" '$1 ~ i \":\" {print $10}' /proc/net/dev)"]
+    command: ["sh", "-c", "IFACE=$(ip -4 route show default | awk '{print $5; exit}'); echo up=$(uptime -p | sed 's/up //' | tr -d '\\n'); echo ip=$(ip -4 -brief addr show scope global | awk '{print $3}' | cut -d/ -f1); echo iface=$IFACE; echo gw=$(ip -4 route show default | awk '{print $3; exit}'); echo ssid=$(nmcli -t -f NAME con show --active 2>/dev/null | head -1); echo state=$(nmcli -t -f STATE g 2>/dev/null); echo rx=$(awk -v i=\"$IFACE\" '$1 ~ i \":\" {print $2}' /proc/net/dev); echo tx=$(awk -v i=\"$IFACE\" '$1 ~ i \":\" {print $10}' /proc/net/dev); echo dread=$(awk '$3 ~ /^(nvme[0-9]+n[0-9]+|sd[a-z]+|vd[a-z]+)$/ {r+=$6} END {print r*512}' /proc/diskstats); echo dwrite=$(awk '$3 ~ /^(nvme[0-9]+n[0-9]+|sd[a-z]+|vd[a-z]+)$/ {w+=$10} END {print w*512}' /proc/diskstats); echo dfree=$(df -B1 / | awk 'NR==2{print $4}')"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.parseStats(text)
@@ -214,42 +237,44 @@ Item {
       color: Qt.rgba(1, 0.42, 0, 0.35)
     }
 
-    Row {
+    Item {
       width: parent.width
+      height: 15
       Text {
-        text: "THERMAL"
-        color: root.muted
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: "DISK IO"
+        color: root.accent
         font.family: root.displayFont
-        font.pixelSize: 10
-        font.letterSpacing: 2
+        font.pixelSize: 13
+        font.letterSpacing: 2.5
+        font.weight: 600
       }
-      Item { width: 10; height: 1 }
       Text {
-        text: "UPTIME " + root.upTime.toUpperCase()
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: (root.diskFree ? root.diskFree + " FREE" : "UPTIME " + root.upTime.toUpperCase())
         color: root.paper
         font.family: root.fontFamily
         font.pixelSize: 12
         font.bold: true
         font.letterSpacing: 0.6
-        anchors.verticalCenter: parent.verticalCenter
       }
     }
 
     MagiSpark {
       width: parent.width
       height: 96
-      seriesA: root.cpuHistory
-      seriesB: root.gpuHistory
+      seriesA: root.writeHistory
+      seriesB: root.readHistory
       colorA: root.accent
       colorB: root.acid
-      minValue: 30
-      maxValue: 95
-      labelA: "CPU"
-      labelB: "GPU"
-      valueA: (root.cpuTemp || "—") + "\u00b0C"
-      valueB: (root.gpuTemp || "—") + "\u00b0C"
-      scaleLow: "30\u00b0C"
-      scaleHigh: "95\u00b0C"
+      labelA: "WRITE"
+      labelB: "READ"
+      valueA: root.fmtRate(root.writeRate)
+      valueB: root.fmtRate(root.readRate)
+      scaleLow: "0"
+      scaleHigh: root.diskScaleHigh
       displayFont: root.displayFont
       bodyFont: root.fontFamily
     }
@@ -284,6 +309,8 @@ Item {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
+          onEntered: root.holdMenu(true)
+          onExited: root.holdMenu(false)
           onClicked: root.run(modelData.cmd)
         }
       }

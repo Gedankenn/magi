@@ -39,6 +39,13 @@ Item {
   property string gpuUsage: ""
   property var prevCpu: null
   property real mediaTick: 0
+  property var cpuHistory: []
+  property var gpuHistory: []
+  property var memHistory: []
+  property var diskHistory: []
+  property var cpuTempHistory: []
+  property var gpuTempHistory: []
+  readonly property int historyCap: 36
 
   readonly property var players: Mpris.players ? Mpris.players.values : []
   readonly property var activePlayer: pickPlayer()
@@ -175,12 +182,19 @@ Item {
     cpuTemp = map.tcpu || ""
     gpuTemp = map.tgpu || ""
     gpuUsage = map.gpu || ""
+    root.cpuHistory = root.pushSample(root.cpuHistory, root.cpuUsage * 100)
+    root.gpuHistory = root.pushSample(root.gpuHistory, parseFloat(root.gpuUsage) || 0)
+    root.memHistory = root.pushSample(root.memHistory, root.memUsage * 100)
+    root.diskHistory = root.pushSample(root.diskHistory, root.diskUsage * 100)
+    root.cpuTempHistory = root.pushSample(root.cpuTempHistory, parseFloat(root.cpuTemp) || 0)
+    root.gpuTempHistory = root.pushSample(root.gpuTempHistory, parseFloat(root.gpuTemp) || 0)
   }
 
-  function meterColor(value) {
-    if (value >= 0.85) return blood
-    if (value >= 0.6) return accent
-    return acid
+  function pushSample(list, value) {
+    var next = (list && list.length) ? list.slice() : []
+    next.push(Math.max(0, Number(value) || 0))
+    if (next.length > historyCap) next.shift()
+    return next
   }
 
   function dayLabel(iso) {
@@ -290,9 +304,10 @@ Item {
   }
 
   Timer {
-    interval: 2000
-    running: root.opened
+    interval: root.opened ? 2000 : 10000
+    running: true
     repeat: true
+    triggeredOnStart: true
     onTriggered: if (!statsProc.running) statsProc.running = true
   }
 
@@ -359,44 +374,6 @@ Item {
       anchors.leftMargin: 14
       anchors.rightMargin: 10
       anchors.bottomMargin: 10
-    }
-  }
-
-  component Meter: Item {
-    property string label: ""
-    property real value: 0
-    property string text: ""
-    property string barColor: ""
-    height: 32
-    width: parent ? parent.width : 200
-
-    Text {
-      text: label
-      color: root.muted
-      font.family: root.fontFamily
-      font.pixelSize: 11
-      font.bold: true
-    }
-    Text {
-      anchors.right: parent.right
-      text: root.text ? root.text : root.pct(value)
-      color: root.paper
-      font.family: root.fontFamily
-      font.pixelSize: 14
-      font.bold: true
-    }
-    Rectangle {
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      height: 7
-      color: "#2a1510"
-      Rectangle {
-        width: Math.max(5, parent.width * Math.max(0.02, Math.min(1, value)))
-        height: parent.height
-        color: barColor.length > 0 ? barColor : root.meterColor(value)
-        Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
-      }
     }
   }
 
@@ -614,13 +591,74 @@ Item {
       coreId: "02"
       title: "MELCHIOR"
 
-      Column {
+      Item {
         parent: melchior.body
-        width: parent.width
-        spacing: 12
-        Meter { label: "CPU"; value: root.cpuUsage; width: parent.width }
-        Meter { label: "Memory"; value: root.memUsage; width: parent.width }
-        Meter { label: "Disk"; value: root.diskUsage; width: parent.width }
+        anchors.fill: parent
+
+        MagiSpark {
+          id: loadSpark
+          anchors.top: parent.top
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: Math.max(88, Math.floor((parent.height - 16) / 3))
+          seriesA: root.cpuHistory
+          seriesB: root.gpuHistory
+          colorA: root.accent
+          colorB: root.acid
+          minValue: 0
+          maxValue: 100
+          labelA: "CPU"
+          labelB: "GPU"
+          valueA: root.pct(root.cpuUsage)
+          valueB: (root.gpuUsage || "0") + "%"
+          scaleLow: "0%"
+          scaleHigh: "100%"
+          displayFont: root.displayFont
+          bodyFont: root.fontFamily
+        }
+        MagiSpark {
+          id: storeSpark
+          anchors.top: loadSpark.bottom
+          anchors.topMargin: 8
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: loadSpark.height
+          seriesA: root.memHistory
+          seriesB: root.diskHistory
+          colorA: root.accent
+          colorB: root.acid
+          minValue: 0
+          maxValue: 100
+          labelA: "MEM"
+          labelB: "DISK"
+          valueA: root.pct(root.memUsage)
+          valueB: root.pct(root.diskUsage)
+          scaleLow: "0%"
+          scaleHigh: "100%"
+          displayFont: root.displayFont
+          bodyFont: root.fontFamily
+        }
+        MagiSpark {
+          anchors.top: storeSpark.bottom
+          anchors.topMargin: 8
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          seriesA: root.cpuTempHistory
+          seriesB: root.gpuTempHistory
+          colorA: root.accent
+          colorB: root.acid
+          minValue: 30
+          maxValue: 95
+          labelA: "CPU"
+          labelB: "GPU"
+          valueA: (root.cpuTemp || "—") + "\u00b0C"
+          valueB: (root.gpuTemp || "—") + "\u00b0C"
+          scaleLow: "30\u00b0C"
+          scaleHigh: "95\u00b0C"
+          displayFont: root.displayFont
+          bodyFont: root.fontFamily
+        }
       }
     }
 
