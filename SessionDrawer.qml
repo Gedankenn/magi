@@ -61,6 +61,8 @@ Item {
         color: cell.containsMouse ? (modelData.danger ? Qt.rgba(0.77, 0.12, 0.23, 0.35) : Qt.rgba(1, 0.42, 0, 0.22)) : "#141014"
         border.width: 1
         border.color: cell.containsMouse ? (modelData.danger ? root.blood : root.accent) : Qt.rgba(1, 0.42, 0, 0.28)
+        Behavior on color { ColorAnimation { duration: 140; easing.type: Easing.OutCubic } }
+        Behavior on border.color { ColorAnimation { duration: 140; easing.type: Easing.OutCubic } }
         Text {
           anchors.centerIn: parent
           text: modelData.label

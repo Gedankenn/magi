@@ -24,6 +24,11 @@ Item {
   property real prevRx: 0
   property real prevTx: 0
   property real ratePrevTime: 0
+  property var rxHistory: []
+  property var txHistory: []
+  property var cpuHistory: []
+  property var gpuHistory: []
+  readonly property int historyCap: 36
 
   readonly property color paper: "#F4F0E6"
   readonly property color muted: "#8a7a6e"
@@ -40,6 +45,13 @@ Item {
   Behavior on opacity { NumberAnimation { duration: 160 } }
 
   function pct(value) { return Math.round((value || 0) * 100) + "%" }
+
+  function pushSample(list, value) {
+    var next = (list && list.length) ? list.slice() : []
+    next.push(Math.max(0, Number(value) || 0))
+    if (next.length > historyCap) next.shift()
+    return next
+  }
 
   function parseStats(raw) {
     var map = {}
@@ -71,18 +83,36 @@ Item {
     root.prevRx = rx
     root.prevTx = tx
     root.ratePrevTime = now
+    root.rxHistory = root.pushSample(root.rxHistory, root.rxRate)
+    root.txHistory = root.pushSample(root.txHistory, root.txRate)
+    root.cpuHistory = root.pushSample(root.cpuHistory, parseFloat(root.cpuTemp) || 0)
+    root.gpuHistory = root.pushSample(root.gpuHistory, parseFloat(root.gpuTemp) || 0)
   }
 
   function fmtRate(bytes) {
     if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB/s"
-    return Math.round(bytes / 1024) + " KB/s"
+    if (bytes >= 1024) return Math.round(bytes / 1024) + " KB/s"
+    return Math.round(bytes) + " B/s"
   }
+
+  function historyMax(a, b) {
+    var hi = 0
+    var i
+    var listA = a || []
+    var listB = b || []
+    for (i = 0; i < listA.length; i++) if (listA[i] > hi) hi = listA[i]
+    for (i = 0; i < listB.length; i++) if (listB[i] > hi) hi = listB[i]
+    return hi
+  }
+
+  readonly property string netScaleHigh: fmtRate(Math.max(historyMax(rxHistory, txHistory) * 1.18, 1024))
 
   function run(args) {
     if (!args || !args.length) return
     Quickshell.execDetached(args)
   }
 
+  Component.onCompleted: if (!statsProc.running) statsProc.running = true
   onOpenedChanged: if (opened && !statsProc.running) statsProc.running = true
 
   Process {
@@ -95,9 +125,10 @@ Item {
   }
 
   Timer {
-    interval: 2000
-    running: root.opened
+    interval: root.opened ? 2000 : 10000
+    running: true
     repeat: true
+    triggeredOnStart: true
     onTriggered: if (!statsProc.running) statsProc.running = true
   }
 
@@ -158,10 +189,23 @@ Item {
         font.pixelSize: 12
         elide: Text.ElideMiddle
       }
-      Text { text: "DOWN"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 12; font.letterSpacing: 1; width: 56 }
-      Text { text: root.fmtRate(root.rxRate); color: root.rxRate > 0 ? root.acid : root.muted; horizontalAlignment: Text.AlignRight; width: (parent.width - parent.columnSpacing)/2 - 56; font.family: root.fontFamily; font.pixelSize: 12 }
-      Text { text: "UP"; color: root.muted; font.family: root.fontFamily; font.pixelSize: 12; font.letterSpacing: 1; width: 56 }
-      Text { text: root.fmtRate(root.txRate); color: root.txRate > 0 ? root.acid : root.muted; horizontalAlignment: Text.AlignRight; width: (parent.width - parent.columnSpacing)/2 - 56; font.family: root.fontFamily; font.pixelSize: 12 }
+    }
+
+    MagiSpark {
+      width: parent.width
+      height: 96
+      seriesA: root.txHistory
+      seriesB: root.rxHistory
+      colorA: root.accent
+      colorB: root.acid
+      labelA: "UP"
+      labelB: "DOWN"
+      valueA: root.fmtRate(root.txRate)
+      valueB: root.fmtRate(root.rxRate)
+      scaleLow: "0"
+      scaleHigh: root.netScaleHigh
+      displayFont: root.displayFont
+      bodyFont: root.fontFamily
     }
 
     Rectangle {
@@ -191,46 +235,23 @@ Item {
       }
     }
 
-    Row {
+    MagiSpark {
       width: parent.width
-      Text {
-        text: "CPU TEMP  " + root.cpuTemp + "\u00b0C"
-        color: root.paper
-        font.family: root.fontFamily
-        font.pixelSize: 13
-        font.bold: true
-        font.letterSpacing: 1.2
-      }
-      Item { width: 10; height: 1 }
-      Text {
-        text: "RX5600XT  " + root.gpuTemp + "\u00b0C"
-        color: root.acid
-        font.family: root.fontFamily
-        font.pixelSize: 13
-        font.bold: true
-        font.letterSpacing: 1.2
-        anchors.verticalCenter: parent.verticalCenter
-      }
-    }
-    Rectangle {
-      width: parent.width
-      height: 9
-      color: "#2a1510"
-      Rectangle {
-        width: Math.max(3, parent.width * (parseFloat(root.cpuTemp) || 0) / 100)
-        height: parent.height
-        color: (parseFloat(root.cpuTemp) || 0) >= 80 ? root.blood : root.accent
-      }
-    }
-    Rectangle {
-      width: parent.width
-      height: 9
-      color: "#2a1510"
-      Rectangle {
-        width: Math.max(3, parent.width * (parseFloat(root.gpuTemp) || 0) / 100)
-        height: parent.height
-        color: (parseFloat(root.gpuTemp) || 0) >= 80 ? root.blood : root.acid
-      }
+      height: 96
+      seriesA: root.cpuHistory
+      seriesB: root.gpuHistory
+      colorA: root.accent
+      colorB: root.acid
+      minValue: 30
+      maxValue: 95
+      labelA: "CPU"
+      labelB: "GPU"
+      valueA: (root.cpuTemp || "—") + "\u00b0C"
+      valueB: (root.gpuTemp || "—") + "\u00b0C"
+      scaleLow: "30\u00b0C"
+      scaleHigh: "95\u00b0C"
+      displayFont: root.displayFont
+      bodyFont: root.fontFamily
     }
 
     Repeater {
@@ -247,6 +268,8 @@ Item {
         color: cell.containsMouse ? Qt.rgba(1, 0.42, 0, 0.22) : "#141014"
         border.width: 1
         border.color: cell.containsMouse ? root.accent : Qt.rgba(1, 0.42, 0, 0.28)
+        Behavior on color { ColorAnimation { duration: 140; easing.type: Easing.OutCubic } }
+        Behavior on border.color { ColorAnimation { duration: 140; easing.type: Easing.OutCubic } }
         Text {
           anchors.centerIn: parent
           text: modelData.label

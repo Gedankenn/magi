@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
+import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 import "MagiBarModel.js" as Model
@@ -62,8 +63,9 @@ Item {
 
   property var layoutConfig: ({ left: [], center: [], right: [] })
   property int barConfigSerial: 0
-  readonly property int dashDelay: 0
-  readonly property int hideDelay: 520
+  readonly property int dashDelay: 40
+  readonly property int hideDelay: 280
+  readonly property int dropAnimMs: 380
   readonly property int sideGap: Style.gapsOut
   readonly property int islandPadX: Style.space(12)
   readonly property int islandRadius: 0
@@ -73,6 +75,54 @@ Item {
   property real centerIslandWidth: 0
   property real rightIslandX: 0
   property real rightIslandWidth: 0
+  property var cavaLevels: []
+  property real audioPeak: peakMon.peak || 0
+  readonly property bool cavaActive: cavaProc.running
+
+  PwObjectTracker { objects: Pipewire.defaultAudioSink ? [Pipewire.defaultAudioSink] : [] }
+
+  PwNodePeakMonitor {
+    id: peakMon
+    node: Pipewire.defaultAudioSink
+    enabled: true
+  }
+
+  property int cavaBackoffMs: 2500
+
+  function parseCava(line) {
+    var parts = String(line || "").replace(/\r/g, "").split(";")
+    var out = []
+    var cap = Math.min(parts.length, 32)
+    for (var i = 0; i < cap; i++) {
+      if (parts[i] === "") continue
+      var n = parseInt(parts[i], 10)
+      if (!isFinite(n)) continue
+      out.push(Math.max(0, Math.min(1, n / 100)))
+    }
+    if (out.length) root.cavaLevels = out
+  }
+
+  Process {
+    id: cavaProc
+    command: ["/usr/bin/cava", "-p", root.omarchyConfigDir + "/plugins/io.github.gedankenn.magi/cava.cfg"]
+    running: true
+    stdout: SplitParser {
+      onRead: function(line) { root.parseCava(line) }
+    }
+    onExited: function() {
+      root.cavaBackoffMs = Math.min(30000, Math.max(2500, root.cavaBackoffMs * 2))
+      cavaRetry.interval = root.cavaBackoffMs
+      cavaRetry.restart()
+    }
+    onStarted: root.cavaBackoffMs = 2500
+  }
+
+  Timer {
+    id: cavaRetry
+    interval: 2500
+    repeat: false
+    onTriggered: if (!cavaProc.running) cavaProc.running = true
+  }
 
   function layoutEntries(region) {
     var serial = barConfigSerial
@@ -349,11 +399,11 @@ Item {
     readonly property int dropTop: root.sideGap + root.barSize - 2
     readonly property int screenW: screen ? Math.round(screen.width) : 1920
     readonly property int sessionW: 300
-    readonly property int sessionH: 300
-    readonly property int dashW: 860
-    readonly property int dashH: 430
+    readonly property int sessionH: 318
+    readonly property int dashW: Math.min(1180, Math.max(860, seat.screenW - root.sideGap * 2))
+    readonly property int dashH: 520
     readonly property int utilW: 320
-    readonly property int utilH: 480
+    readonly property int utilH: 640
 
     function clampX(x, w) {
       return Math.max(0, Math.min(seat.screenW - w, Math.round(x)))
@@ -508,8 +558,9 @@ Item {
     property int fixedWidth: 240
     property int fixedHeight: 200
     property int posX: 0
+    readonly property bool sliding: Math.abs(slide.y) < fixedHeight - 2
 
-    visible: opened
+    visible: opened || sliding
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: fixedWidth
@@ -525,6 +576,26 @@ Item {
 
     Item {
       anchors.fill: parent
+      clip: true
+
+    Item {
+      id: slide
+      width: parent.width
+      height: parent.height
+      y: dropWin.opened ? 0 : -dropWin.fixedHeight - 10
+      opacity: dropWin.opened ? 1 : 0
+      Behavior on y {
+        NumberAnimation {
+          duration: root.dropAnimMs
+          easing.type: dropWin.opened ? Easing.OutCubic : Easing.InCubic
+        }
+      }
+      Behavior on opacity {
+        NumberAnimation {
+          duration: Math.round(root.dropAnimMs * 0.7)
+          easing.type: Easing.OutCubic
+        }
+      }
 
       HoverHandler {
         blocking: false
@@ -546,6 +617,14 @@ Item {
         radius: 0
         color: "#0c0a0d"
         borderSpec: Border.flat("#FF6A00", 2)
+        scale: dropWin.opened ? 1 : 0.985
+        transformOrigin: Item.Top
+        Behavior on scale {
+          NumberAnimation {
+            duration: root.dropAnimMs
+            easing.type: Easing.OutCubic
+          }
+        }
 
         Rectangle { z: 4; width: 20; height: 2; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
         Rectangle { z: 4; width: 2; height: 20; color: "#FF6A00"; anchors.left: parent.left; anchors.top: parent.top }
@@ -628,6 +707,7 @@ Item {
           }
         }
       }
+    }
     }
   }
 

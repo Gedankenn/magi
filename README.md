@@ -53,10 +53,17 @@ workspaces, clock, network, tray, …) is grouped into them.
   - **BALTHASAR** — weather, with a **live temperature line chart** fed from
     `wttr.in` (hour-by-hour, next 3 days) showing the city, day dividers, and
     `▲` peak / `▼` trough markers.
+  - **SACHIEL** — month calendar. Click the clock for the same MAGI calendar
+    popup; the lock screen carries a copy too.
   - **MELCHIOR** — system meters: **CPU**, **Memory**, **Disk**, **Temp** and
     **GPU** (AMD bus utilization + temperature via `sensors`).
-  - **CASPER** — media. When nothing is playing it shows a scanline
+  - **CASPER** — media with album art, spectrum bars, seek bar, and
+    prev/play/next. When nothing is playing it shows a scanline
     `AWAITING SIGNAL — NO SOURCE ATTACHED` idle state.
+- **Right SYS** — network + thermal graphs (up/down and CPU/GPU).
+
+Drawers **slide down from the islands** (Caelestia-style) instead of popping
+in. Hover an island, or pin MAGI with `Super + D`.
 - **Left NERV** — session: lock, logout, reboot, shutdown.
 - **Right SYS** — status: **THERMAL** (CPU + GPU temperatures), **UPTIME**, then
   **NETWORK** (iface, IP, gateway, link state, live up/down rate) plus
@@ -71,16 +78,17 @@ and acid-green when it's active.
 
 | Widget | File | Notes |
 | --- | --- | --- |
-| Clock | `omarchy.clock.qml` | Chakra Petch `HH:mm` + upper-case date; right-click cycles formats; click opens the stock calendar. |
+| Clock | `omarchy.clock.qml` | Chakra Petch `HH:mm` + upper-case date; right-click cycles formats; click opens the MAGI calendar. |
 | Performance | `omarchy.performance.qml` | `CPU / MEM / DISK` fixed-width cells so the numbers don't jitter. |
 | Workspaces | `omarchy.workspaces.qml` | Square brackets — active is a hollow orange bracket, occupied red, empty dimmed. |
+| Media | `omarchy.media.qml` | Play glyph, cava spectrum, always-visible title. Copy `MagiVisualizer.qml` next to it. |
 
 ### Shortcuts
 
 | Input | Action |
 | :---: | --- |
 | Pointer on an island | Expand it into its menu |
-| `Super + D` | Pin / unpin the MAGI dashboard |
+| `Super + D` / `Super + M` | Pin / unpin the MAGI dashboard |
 | `Escape` (pinned) | Release the dashboard |
 | `r` | Refresh weather + meters |
 

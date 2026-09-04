@@ -112,7 +112,7 @@ BarWidget {
   Loader {
     id: panelLoader
     active: true
-    source: "file:///usr/share/omarchy/shell/plugins/panels/clock/Panel.qml"
+    source: "file://" + Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.gedankenn.magi/MagiClockPanel.qml"
     visible: false
     onLoaded: {
       root.injectPanel()

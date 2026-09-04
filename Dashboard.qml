@@ -38,18 +38,27 @@ Item {
   property string gpuTemp: ""
   property string gpuUsage: ""
   property var prevCpu: null
+  property real mediaTick: 0
 
   readonly property var players: Mpris.players ? Mpris.players.values : []
   readonly property var activePlayer: pickPlayer()
   readonly property string trackTitle: activePlayer ? (activePlayer.trackTitle || "") : ""
   readonly property string trackArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
+  readonly property string trackAlbum: activePlayer ? (activePlayer.trackAlbum || "") : ""
+  readonly property string trackArt: activePlayer && activePlayer.trackArtUrl ? activePlayer.trackArtUrl : ""
   readonly property bool playing: !!(activePlayer && activePlayer.isPlaying)
+  readonly property real mediaLength: activePlayer ? Number(activePlayer.length) || 0 : 0
+  readonly property real mediaPosition: {
+    mediaTick
+    return activePlayer ? Number(activePlayer.position) || 0 : 0
+  }
+  readonly property real mediaRatio: mediaLength > 0 ? Math.max(0, Math.min(1, mediaPosition / mediaLength)) : 0
 
   width: parent ? parent.width : 1600
   height: parent ? parent.height : 500
   opacity: opened ? 1 : 0
   visible: opacity > 0.02
-  Behavior on opacity { NumberAnimation { duration: 140 } }
+  Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
   function pickPlayer() {
     var list = players || []
@@ -64,14 +73,19 @@ Item {
     if (!statsProc.running) statsProc.running = true
   }
 
+  function weatherUrl(query) {
+    var loc = String(query || "")
+    var path = loc ? encodeURIComponent(loc) : ""
+    return "https://wttr.in/" + path
+  }
+
   function startWeather() {
-    var q = String(root.locationQuery || "")
-    var locPart = q.length > 0 ? q : ""
+    var base = root.weatherUrl(root.locationQuery)
     weatherProc.command = ["curl", "-fsS", "-A", "magi-dashboard", "--max-time", "6",
-      "https://wttr.in/" + locPart + "?format=%c|%t|%C|%h|%w|%l&m"]
+      base + "?format=%c|%t|%C|%h|%w|%l&m"]
     weatherProc.running = true
     forecastProc.command = ["curl", "-fsS", "-A", "magi-dashboard", "--max-time", "7",
-      "https://wttr.in/" + locPart + "?format=j1&m"]
+      base + "?format=j1&m"]
     forecastProc.running = true
   }
 
@@ -89,7 +103,8 @@ Item {
       var series = []
       var maxT = -999, minT = 999
       var days = data.weather || []
-      for (var i = 0; i < days.length; i++) {
+      var limit = Math.min(days.length, 3)
+      for (var i = 0; i < limit; i++) {
         var w = days[i]
         list.push({
           date: String(w.date || ""),
@@ -178,24 +193,6 @@ Item {
     return Qt.locale("en_US").dayName(d.getDay(), Locale.ShortFormat).toUpperCase()
   }
 
-  function forecastSpan() {
-    var hi = -999, lo = 999
-    for (var i = 0; i < dailyForecast.length; i++) {
-      if (dailyForecast[i].max > hi) hi = dailyForecast[i].max
-      if (dailyForecast[i].min < lo) lo = dailyForecast[i].min
-    }
-    if (hi === -999) { hi = 30; lo = 0 }
-    return Math.max(4, hi - lo)
-  }
-
-  function tempBarH(temp) {
-    var lo = 999
-    for (var i = 0; i < dailyForecast.length; i++) if (dailyForecast[i].min < lo) lo = dailyForecast[i].min
-    if (lo === 999) lo = 0
-    var span = root.forecastSpan()
-    return Math.max(2, Math.round((temp - lo) / span * 60))
-  }
-
   function sTMax() {
     var last = 0
     for (var i = 0; i < hourlySeries.length; i++) if (hourlySeries[i].t > last) last = hourlySeries[i].t
@@ -223,11 +220,23 @@ Item {
     return Math.round((value || 0) * 100) + "%"
   }
 
+  function fmtClock(sec) {
+    var s = Math.max(0, Math.floor(sec))
+    var m = Math.floor(s / 60)
+    var r = s % 60
+    return m + ":" + (r < 10 ? "0" : "") + r
+  }
+
   function mediaAction(action) {
     if (!activePlayer) return
     if (action === "play") activePlayer.togglePlaying()
     else if (action === "next") activePlayer.next()
     else activePlayer.previous()
+  }
+
+  function seekMedia(ratio) {
+    if (!activePlayer || mediaLength <= 0) return
+    try { activePlayer.position = mediaLength * Math.max(0, Math.min(1, ratio)) } catch (e) {}
   }
 
   onOpenedChanged: if (opened) refreshAll()
@@ -287,6 +296,13 @@ Item {
     onTriggered: if (!statsProc.running) statsProc.running = true
   }
 
+  Timer {
+    interval: 500
+    running: root.opened && root.playing
+    repeat: true
+    onTriggered: root.mediaTick++
+  }
+
   SystemClock {
     id: clock
     precision: SystemClock.Seconds
@@ -316,7 +332,7 @@ Item {
       text: pane.coreId + "   " + pane.title
       color: root.accent
       font.family: root.displayFont
-      font.pixelSize: 14
+      font.pixelSize: 13
       font.weight: 600
       font.letterSpacing: 2
     }
@@ -351,7 +367,7 @@ Item {
     property real value: 0
     property string text: ""
     property string barColor: ""
-    height: 38
+    height: 32
     width: parent ? parent.width : 200
 
     Text {
@@ -366,19 +382,20 @@ Item {
       text: root.text ? root.text : root.pct(value)
       color: root.paper
       font.family: root.fontFamily
-      font.pixelSize: 15
+      font.pixelSize: 14
       font.bold: true
     }
     Rectangle {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.bottom: parent.bottom
-      height: 8
+      height: 7
       color: "#2a1510"
       Rectangle {
         width: Math.max(5, parent.width * Math.max(0.02, Math.min(1, value)))
         height: parent.height
-        color: text.length > 0 && barColor.length > 0 ? barColor : (barColor.length > 0 ? barColor : root.meterColor(value))
+        color: barColor.length > 0 ? barColor : root.meterColor(value)
+        Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
       }
     }
   }
@@ -388,7 +405,7 @@ Item {
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    height: 46
+    height: 42
 
     Text {
       anchors.left: parent.left
@@ -397,7 +414,7 @@ Item {
       text: root.host && root.host.pinned ? "PINNED" : (root.weatherPlace || "GEOFRONT").toUpperCase()
       color: root.paper
       font.family: root.displayFont
-      font.pixelSize: 15
+      font.pixelSize: 14
       font.weight: 600
       font.letterSpacing: 2
     }
@@ -409,7 +426,7 @@ Item {
       text: Qt.formatTime(clock.date, "HH:mm:ss")
       color: root.paper
       font.family: root.displayFont
-      font.pixelSize: 30
+      font.pixelSize: 28
       font.weight: 600
       font.letterSpacing: 1
     }
@@ -421,14 +438,14 @@ Item {
     anchors.bottom: parent.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.leftMargin: 16
-    anchors.rightMargin: 16
-    anchors.bottomMargin: 16
-    spacing: 12
+    anchors.leftMargin: 14
+    anchors.rightMargin: 14
+    anchors.bottomMargin: 14
+    spacing: 10
 
     CorePane {
       id: balthasar
-      width: (parent.width - 24) / 3
+      width: (parent.width - 30) / 4
       height: parent.height
       coreId: "01"
       title: "BALTHASAR"
@@ -436,14 +453,14 @@ Item {
       Column {
         parent: balthasar.body
         width: parent.width
-        spacing: 10
+        spacing: 8
 
         Text {
           width: parent.width
           text: (root.cityName || root.weatherPlace || "GEOFRONT").toUpperCase()
           color: root.accent
           font.family: root.displayFont
-          font.pixelSize: 15
+          font.pixelSize: 13
           font.weight: 600
           font.letterSpacing: 2
           elide: Text.ElideRight
@@ -453,7 +470,7 @@ Item {
           text: (root.weatherTemp || "—") + "   " + (root.weatherEmoji || "")
           color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: 30
+          font.pixelSize: 28
           font.bold: true
         }
         Text {
@@ -461,7 +478,7 @@ Item {
           text: root.weatherCond || "No weather signal"
           color: root.paper
           font.family: root.fontFamily
-          font.pixelSize: 13
+          font.pixelSize: 12
           wrapMode: Text.WordWrap
         }
         Text {
@@ -472,24 +489,20 @@ Item {
           font.pixelSize: 11
         }
 
-        Rectangle {
-          width: parent.width
-          height: 1
-          color: "#5A2A10"
-        }
+        Rectangle { width: parent.width; height: 1; color: "#5A2A10" }
 
         Text {
           text: "NEXT DAYS"
           color: root.muted
           font.family: root.displayFont
-          font.pixelSize: 11
+          font.pixelSize: 10
           font.letterSpacing: 2
         }
 
         Canvas {
           id: tempChart
           width: parent.width
-          height: 96
+          height: 110
 
           onPaint: {
             var ctx = tempChart.getContext("2d")
@@ -502,7 +515,6 @@ Item {
 
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
-
             ctx.strokeStyle = "#3a2418"
             ctx.lineWidth = 1
             ctx.beginPath()
@@ -518,12 +530,10 @@ Item {
               ctx.moveTo(dx, 6)
               ctx.lineTo(dx, h - 26)
               ctx.stroke()
-
-              var label = root.dayLabel(root.dailyForecast[d].date)
               ctx.fillStyle = "#9A8B7C"
               ctx.font = "600 10px 'Chakra Petch'"
               ctx.textAlign = "center"
-              ctx.fillText(label, dx, 10)
+              ctx.fillText(root.dayLabel(root.dailyForecast[d].date), dx, 10)
             }
 
             ctx.strokeStyle = "#FF6A00"
@@ -577,8 +587,29 @@ Item {
     }
 
     CorePane {
+      id: sachiel
+      width: (parent.width - 30) / 4
+      height: parent.height
+      coreId: "04"
+      title: "SACHIEL"
+
+      MagiCalendar {
+        parent: sachiel.body
+        anchors.horizontalCenter: parent.horizontalCenter
+        today: clock.date
+        paper: root.paper
+        muted: root.muted
+        accent: root.accent
+        blood: root.blood
+        displayFont: root.displayFont
+        fontFamily: root.fontFamily
+        cellSize: Math.floor(Math.min(30, (sachiel.body.width - 4) / 7))
+      }
+    }
+
+    CorePane {
       id: melchior
-      width: (parent.width - 24) / 3
+      width: (parent.width - 30) / 4
       height: parent.height
       coreId: "02"
       title: "MELCHIOR"
@@ -586,18 +617,16 @@ Item {
       Column {
         parent: melchior.body
         width: parent.width
-        spacing: 14
+        spacing: 12
         Meter { label: "CPU"; value: root.cpuUsage; width: parent.width }
         Meter { label: "Memory"; value: root.memUsage; width: parent.width }
         Meter { label: "Disk"; value: root.diskUsage; width: parent.width }
-        Meter { label: "Temp"; value: (parseFloat(root.cpuTemp) || 0) / 100; text: root.cpuTemp + "\u00b0C"; barColor: root.accent; width: parent.width }
-        Meter { label: "GPU RX5600XT"; value: (parseFloat(root.gpuUsage) || 0) / 100; text: root.gpuUsage + "%  " + root.gpuTemp + "\u00b0C"; barColor: root.acid; width: parent.width }
       }
     }
 
     CorePane {
       id: casper
-      width: (parent.width - 24) / 3
+      width: (parent.width - 30) / 4
       height: parent.height
       coreId: "03"
       title: "CASPER"
@@ -605,40 +634,86 @@ Item {
       Column {
         parent: casper.body
         width: parent.width
-        spacing: 12
+        spacing: 10
 
-        Text {
-          width: parent.width
+        Row {
           visible: root.activePlayer !== null
-          text: root.trackTitle || "No signal"
-          color: root.paper
-          font.family: root.fontFamily
-          font.pixelSize: 15
-          font.bold: true
-          wrapMode: Text.WordWrap
-          maximumLineCount: 2
-        }
-        Text {
           width: parent.width
-          visible: root.activePlayer !== null
-          text: root.trackArtist || "Casper is idle"
-          color: root.muted
-          font.family: root.fontFamily
-          font.pixelSize: 12
-          wrapMode: Text.WordWrap
+          spacing: 10
+
+          Rectangle {
+            width: 72
+            height: 72
+            color: "#1a1210"
+            border.width: 1
+            border.color: root.accent
+            clip: true
+
+            Image {
+              anchors.fill: parent
+              anchors.margins: 1
+              source: root.trackArt
+              fillMode: Image.PreserveAspectCrop
+              asynchronous: true
+              visible: root.trackArt !== ""
+            }
+
+            Text {
+              anchors.centerIn: parent
+              visible: root.trackArt === ""
+              text: "♪"
+              color: root.accent
+              font.family: root.displayFont
+              font.pixelSize: 28
+            }
+          }
+
+          Column {
+            width: parent.width - 82
+            spacing: 4
+            anchors.verticalCenter: parent.verticalCenter
+            Text {
+              width: parent.width
+              text: root.trackTitle || "No signal"
+              color: root.paper
+              font.family: root.fontFamily
+              font.pixelSize: 14
+              font.bold: true
+              wrapMode: Text.WordWrap
+              maximumLineCount: 2
+              elide: Text.ElideRight
+            }
+            Text {
+              width: parent.width
+              text: root.trackArtist || "Casper is idle"
+              color: root.muted
+              font.family: root.fontFamily
+              font.pixelSize: 12
+              elide: Text.ElideRight
+            }
+            Text {
+              width: parent.width
+              visible: root.trackAlbum !== ""
+              text: root.trackAlbum
+              color: Qt.rgba(0.96, 0.94, 0.9, 0.45)
+              font.family: root.fontFamily
+              font.pixelSize: 11
+              elide: Text.ElideRight
+            }
+          }
         }
 
         Column {
           visible: root.activePlayer === null
           width: parent.width
-          spacing: 6
+          spacing: 8
 
           Text {
             width: parent.width
             text: "AWAITING SIGNAL"
             color: root.accent
             font.family: root.displayFont
-            font.pixelSize: 14
+            font.pixelSize: 13
             font.weight: 600
             font.letterSpacing: 2.5
             horizontalAlignment: Text.AlignHCenter
@@ -656,16 +731,11 @@ Item {
               width: 120
               height: parent.height
               color: Qt.rgba(1, 0.42, 0, 0.16)
-              visible: false
             }
 
             SequentialAnimation {
-              running: root.activePlayer === null && scanField.width > 0
+              running: root.activePlayer === null && root.opened && scanField.width > 0
               loops: Animation.Infinite
-              onStarted: {
-                scanBeam.x = -scanBeam.width
-                scanBeam.visible = true
-              }
               NumberAnimation {
                 target: scanBeam
                 property: "x"
@@ -688,6 +758,67 @@ Item {
             horizontalAlignment: Text.AlignHCenter
           }
         }
+
+        Item {
+          visible: root.activePlayer !== null
+          width: parent.width
+          height: 28
+
+          Text {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            text: root.fmtClock(root.mediaPosition)
+            color: root.muted
+            font.family: root.fontFamily
+            font.pixelSize: 10
+          }
+          Text {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            text: root.fmtClock(root.mediaLength)
+            color: root.muted
+            font.family: root.fontFamily
+            font.pixelSize: 10
+          }
+
+          Rectangle {
+            id: seekTrack
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 8
+            color: "#2a1510"
+
+            Rectangle {
+              width: Math.max(2, parent.width * root.mediaRatio)
+              height: parent.height
+              color: root.accent
+              Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: function(mouse) {
+                if (seekTrack.width > 0) root.seekMedia(mouse.x / seekTrack.width)
+              }
+            }
+          }
+        }
+
+        MagiVisualizer {
+          visible: root.opened && root.activePlayer !== null
+          width: parent.width
+          height: 46
+          barCount: 16
+          barWidth: 4
+          gap: 2
+          levels: root.host && root.host.cavaLevels ? root.host.cavaLevels : []
+          peak: root.host && root.host.audioPeak ? root.host.audioPeak : 0
+          playing: root.playing
+          cavaActive: !!(root.host && root.host.cavaActive)
+        }
+
         Row {
           spacing: 8
           Repeater {
@@ -698,18 +829,20 @@ Item {
             ]
             Rectangle {
               required property var modelData
-              width: 60
+              width: 62
               height: 30
               color: hit.containsMouse ? "#402010" : "#1a1210"
               border.width: 1
               border.color: root.accent
+              Behavior on color { ColorAnimation { duration: 120 } }
               Text {
                 anchors.centerIn: parent
                 text: modelData.label
                 color: root.paper
-                font.family: root.fontFamily
+                font.family: root.displayFont
                 font.pixelSize: 11
-                font.bold: true
+                font.letterSpacing: 1
+                font.weight: 600
               }
               MouseArea {
                 id: hit
