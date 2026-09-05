@@ -280,10 +280,86 @@ Item {
     return 8 + (t - t0) / range * (w - 16)
   }
 
+  function nowMark() {
+    var now = clock.date
+    var hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600
+    var days = dailyForecast || []
+    if (!days.length) return hour
+    var bits = String(days[0].date || "").split("-")
+    if (bits.length < 3) return hour
+    var start = new Date(parseInt(bits[0], 10), parseInt(bits[1], 10) - 1, parseInt(bits[2], 10))
+    if (isNaN(start.getTime())) return hour
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    var dayDiff = Math.round((today.getTime() - start.getTime()) / 86400000)
+    return dayDiff * 24 + hour
+  }
+
+  readonly property real nowCursor: {
+    clock.date
+    dailyForecast
+    return root.nowMark()
+  }
+
+  readonly property int hourAxis: 14
+
+  function hourLabel(t) {
+    var hr = Math.round(t) % 24
+    if (hr < 0) hr += 24
+    return (hr < 10 ? "0" : "") + hr
+  }
+
+  function drawNowLine(ctx, w, h) {
+    var tNow = root.nowMark()
+    var t0 = root.sTMin()
+    var t1 = root.sTMax()
+    if (!(t1 > t0) || tNow < t0 || tNow > t1) return
+    var x = root.spX(tNow, w)
+    ctx.save()
+    ctx.strokeStyle = "#9B6DFF"
+    ctx.lineWidth = 1.2
+    ctx.setLineDash([3, 3])
+    ctx.beginPath()
+    ctx.moveTo(x, 4)
+    ctx.lineTo(x, h - root.hourAxis)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  function drawHourAxis(ctx, w, h) {
+    var t0 = root.sTMin()
+    var t1 = root.sTMax()
+    if (!(t1 > t0)) return
+    var axisY = h - root.hourAxis
+    ctx.save()
+    ctx.strokeStyle = "rgba(122,255,255,0.18)"
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, axisY)
+    ctx.lineTo(w, axisY)
+    ctx.stroke()
+    ctx.font = "600 9px 'Chakra Petch'"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "top"
+    var start = Math.ceil(t0 / 6) * 6
+    for (var t = start; t <= t1 + 0.05; t += 6) {
+      var x = root.spX(t, w)
+      ctx.strokeStyle = "rgba(122,255,255,0.22)"
+      ctx.beginPath()
+      ctx.moveTo(x, axisY)
+      ctx.lineTo(x, axisY - 3)
+      ctx.stroke()
+      ctx.fillStyle = "#B7A99A"
+      ctx.fillText(root.hourLabel(t), x, axisY + 2)
+    }
+    ctx.restore()
+  }
+
   function spY(temp, h) {
     var lo = Math.min(root.seriesMin, 0), hi = root.seriesMax
     var span = Math.max(1, hi - lo)
-    return 10 + (1 - (temp - lo) / span) * (h - 20)
+    var top = 14
+    var bot = root.hourAxis + 2
+    return top + (1 - (temp - lo) / span) * (h - top - bot)
   }
 
   function peakRainLabel(series) {
@@ -651,7 +727,9 @@ Item {
         Canvas {
           id: tempChart
           width: parent.width
-          height: 68
+          height: 80
+          onWidthChanged: requestPaint()
+          onHeightChanged: requestPaint()
 
           onPaint: {
             var ctx = tempChart.getContext("2d")
@@ -662,14 +740,9 @@ Item {
             var series = root.hourlySeries
             if (!series || series.length < 2) return
 
+            var axisY = h - root.hourAxis
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
-            ctx.strokeStyle = "rgba(122,255,255,0.16)"
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.moveTo(0, h - 22)
-            ctx.lineTo(w, h - 22)
-            ctx.stroke()
 
             for (var d = 0; d < root.dailyForecast.length; d++) {
               var dx = root.spX(d * 24, w)
@@ -677,7 +750,7 @@ Item {
               ctx.lineWidth = 1
               ctx.beginPath()
               ctx.moveTo(dx, 6)
-              ctx.lineTo(dx, h - 26)
+              ctx.lineTo(dx, axisY)
               ctx.stroke()
               ctx.fillStyle = "#B7A99A"
               ctx.font = "600 10px 'Chakra Petch'"
@@ -721,7 +794,10 @@ Item {
             var mnx = root.spX(series[minIdx].t, w)
             var mny = root.spY(series[minIdx].temp, h)
             ctx.beginPath(); ctx.arc(mnx, mny, 3, 0, Math.PI * 2); ctx.fill()
-            ctx.fillText("▼ " + series[minIdx].temp + "\u00b0C", mnx, Math.min(h - 10, mny + 12))
+            ctx.fillText("▼ " + series[minIdx].temp + "\u00b0C", mnx, Math.min(axisY - 2, mny + 12))
+
+            root.drawHourAxis(ctx, w, h)
+            root.drawNowLine(ctx, w, h)
           }
 
           Connections {
@@ -730,6 +806,7 @@ Item {
             function onSeriesMaxChanged() { tempChart.requestPaint() }
             function onSeriesMinChanged() { tempChart.requestPaint() }
             function onDailyForecastChanged() { tempChart.requestPaint() }
+            function onNowCursorChanged() { tempChart.requestPaint() }
           }
         }
 
@@ -761,7 +838,7 @@ Item {
         Canvas {
           id: rainChart
           width: parent.width
-          height: 78
+          height: 88
           onWidthChanged: requestPaint()
           onHeightChanged: requestPaint()
 
@@ -773,6 +850,8 @@ Item {
             var series = root.hourlySeries
             if (!series || series.length < 2 || w < 8 || h < 8) return
 
+            var axisY = h - root.hourAxis
+            var plotH = axisY - 6
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
 
@@ -783,19 +862,12 @@ Item {
             }
             maxMm = maxMm * 1.2
 
-            ctx.strokeStyle = "rgba(122,255,255,0.16)"
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.moveTo(0, h - 4)
-            ctx.lineTo(w, h - 4)
-            ctx.stroke()
-
             for (var d = 0; d < root.dailyForecast.length; d++) {
               var dx = root.spX(d * 24, w)
               ctx.strokeStyle = "rgba(122,255,255,0.12)"
               ctx.beginPath()
               ctx.moveTo(dx, 4)
-              ctx.lineTo(dx, h - 4)
+              ctx.lineTo(dx, axisY)
               ctx.stroke()
             }
 
@@ -811,15 +883,15 @@ Item {
               var cx = root.spX(series[i].t, w)
               var rain = Math.max(0, Math.min(100, series[i].rain || 0))
               var mm = Math.max(0, series[i].mm || 0)
-              var chanceH = (rain / 100) * (h - 10) * 0.55
-              var mmH = (mm / maxMm) * (h - 10)
+              var chanceH = (rain / 100) * plotH * 0.55
+              var mmH = (mm / maxMm) * plotH
               if (chanceH > 1) {
                 ctx.fillStyle = "rgba(122,255,255,0.14)"
-                ctx.fillRect(cx - barW / 2, h - 4 - chanceH, barW, chanceH)
+                ctx.fillRect(cx - barW / 2, axisY - chanceH, barW, chanceH)
               }
               if (mmH > 1) {
                 ctx.fillStyle = i === peakIdx ? "#A8FF3E" : "rgba(122,255,255,0.72)"
-                ctx.fillRect(cx - barW / 2, h - 4 - mmH, barW, mmH)
+                ctx.fillRect(cx - barW / 2, axisY - mmH, barW, mmH)
               }
             }
 
@@ -828,17 +900,21 @@ Item {
             ctx.beginPath()
             for (i = 0; i < n; i++) {
               var hx = root.spX(series[i].t, w)
-              var hy = 6 + (1 - Math.max(0, Math.min(100, series[i].hum || 0)) / 100) * (h - 12)
+              var hy = 6 + (1 - Math.max(0, Math.min(100, series[i].hum || 0)) / 100) * plotH
               if (i === 0) ctx.moveTo(hx, hy)
               else ctx.lineTo(hx, hy)
             }
             ctx.stroke()
+
+            root.drawHourAxis(ctx, w, h)
+            root.drawNowLine(ctx, w, h)
           }
 
           Connections {
             target: root
             function onHourlySeriesChanged() { rainChart.requestPaint() }
             function onDailyForecastChanged() { rainChart.requestPaint() }
+            function onNowCursorChanged() { rainChart.requestPaint() }
           }
         }
       }
